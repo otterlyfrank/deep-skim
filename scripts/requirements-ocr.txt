@@ -1,0 +1,11 @@
+# Minimal OCR bridge dependencies
+pymupdf>=1.24.0
+pypdf>=4.0.0
+Pillow>=10.0.0
+
+# Optional — only if running models in-process (needs GPU recommended):
+# torch
+# transformers>=4.45.0
+# einops
+# addict
+# easydict

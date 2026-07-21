@@ -1,0 +1,12 @@
+{
+  "name": "deep-skim",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Local-first deep-skim reading system",
+  "scripts": {
+    "start": "python3 -m http.server 8080",
+    "serve": "python3 -m http.server 8080",
+    "ocr-bridge": "python3 scripts/ocr_bridge.py --port 8765"
+  }
+}
