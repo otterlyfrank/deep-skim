@@ -253,8 +253,16 @@ async function refreshNavBadges() {
   const sc = $('#nav-sum-count');
   const rc = $('#nav-review-count');
   const pc = $('#nav-proj-count');
+  const rlc = $('#nav-reading-count');
+  const stc = $('#nav-star-count');
   if (sc) sc.textContent = String(sums.length);
   if (rc) rc.textContent = String(due.length);
+  if (rlc) {
+    rlc.textContent = String(
+      sums.filter((s) => s.status === 'promote' || (s.tags || []).includes('full-reading')).length
+    );
+  }
+  if (stc) stc.textContent = String(sums.filter((s) => s.starred).length);
   if (pc) {
     const active = projects.filter((p) => p.status === 'active').length;
     pc.textContent = String(active || projects.length);
@@ -349,7 +357,9 @@ export async function navigate(view, params = {}, { skipHash = false } = {}) {
       ? 'summaries'
       : view === 'project'
         ? 'projects'
-        : view;
+        : view === 'reading-list' || view === 'starred'
+          ? view
+          : view;
   setActiveNav(navKey);
 
   const root = $('#view-root');
@@ -370,11 +380,19 @@ export async function navigate(view, params = {}, { skipHash = false } = {}) {
         await renderDocument(root, actions, params.docId);
         break;
       case 'summaries':
-        setViewChrome('Summaries', 'Stored deep-skims');
-        await renderSummaries(root, actions);
+        setViewChrome('Summaries', 'All deep-skims · star & promote from each skim');
+        await renderSummaries(root, actions, 'all');
+        break;
+      case 'reading-list':
+        setViewChrome('Reading List', 'Worth a full read — the epic queue');
+        await renderSummaries(root, actions, 'reading-list');
+        break;
+      case 'starred':
+        setViewChrome('Starred', 'Skims to keep handy · can also be on Reading List');
+        await renderSummaries(root, actions, 'starred');
         break;
       case 'summary':
-        setViewChrome('Deep-skim', 'Structured reading view');
+        setViewChrome('Deep-skim', 'Is it worth reading?');
         await renderSummary(root, actions, params.summaryId);
         break;
       case 'quiz':
@@ -753,7 +771,7 @@ async function renderDocument(root, actions, docId) {
               <div>
                 <h3>${escapeHtml(s.title)}</h3>
                 <div class="meta">
-                  <span class="pill ${s.status === 'core' ? 'core' : ''}">${escapeHtml(s.status)}</span>
+                  ${summaryDecisionPillsHtml(s)}
                   <span>${formatDate(s.createdAt)}</span>
                   <span>${escapeHtml(s.model || 'model n/a')}</span>
                 </div>
@@ -1267,14 +1285,44 @@ async function runProjectSynthesis(projectId) {
   });
 }
 
-// ── Summaries list ─────────────────────────────────────────
+// ── Summaries list / Reading List / Starred ────────────────
 
-async function renderSummaries(root, actions) {
-  const sums = await listSummaries();
-  actions.innerHTML = `<button type="button" class="ghost" id="btn-sums-to-lib">← Library</button>`;
-  $('#btn-sums-to-lib').onclick = () => navigate('library');
+function summaryDecisionPillsHtml(s) {
+  const parts = [];
+  if (s.starred) parts.push(`<span class="pill core" title="Starred skim">★ Starred</span>`);
+  if (s.status === 'promote' || (s.tags || []).includes('full-reading')) {
+    parts.push(`<span class="pill asap" title="On the full-reading queue">Reading list</span>`);
+  }
+  if (s.status === 'archive') parts.push(`<span class="pill low">Archived</span>`);
+  if (!parts.length) parts.push(`<span class="pill">inbox</span>`);
+  return parts.join('');
+}
 
-  if (!sums.length) {
+/**
+ * @param {'all'|'reading-list'|'starred'} mode
+ */
+async function renderSummaries(root, actions, mode = 'all') {
+  const all = await listSummaries();
+  let sums = all;
+  if (mode === 'reading-list') {
+    sums = all.filter((s) => s.status === 'promote' || (s.tags || []).includes('full-reading'));
+  } else if (mode === 'starred') {
+    sums = all.filter((s) => s.starred);
+  }
+
+  const backLabel =
+    mode === 'reading-list' || mode === 'starred' ? '← Summaries' : '← Library';
+  actions.innerHTML = `
+    <button type="button" class="ghost" id="btn-sums-back">${backLabel}</button>
+    ${mode !== 'reading-list' ? `<button type="button" id="btn-go-reading">${icons.readingList || ''} Reading List</button>` : ''}
+    ${mode !== 'starred' ? `<button type="button" id="btn-go-starred">${icons.star || ''} Starred</button>` : ''}
+  `;
+  $('#btn-sums-back').onclick = () =>
+    mode === 'all' ? navigate('library') : navigate('summaries');
+  $('#btn-go-reading')?.addEventListener('click', () => navigate('reading-list'));
+  $('#btn-go-starred')?.addEventListener('click', () => navigate('starred'));
+
+  if (!all.length) {
     root.innerHTML = `<div class="empty-state">
       <h3>No summaries yet</h3>
       <p>Add a PDF, wait until status is <strong>ready</strong>, then generate one deep-skim (aim for one per week).</p>
@@ -1288,15 +1336,52 @@ async function renderSummaries(root, actions) {
     return;
   }
 
-  root.innerHTML = `<div class="content-narrow"><div class="card-list">${sums
-    .map(
-      (s) => `
+  if (!sums.length) {
+    const empty =
+      mode === 'reading-list'
+        ? {
+            h: 'Reading List is empty',
+            p: 'Open a deep-skim and press <strong>Promote to Reading List</strong> when §8 says it’s worth a full sit-down with the PDF.',
+          }
+        : mode === 'starred'
+          ? {
+              h: 'No starred skims',
+              p: 'Press <strong>★ Star</strong> on any deep-skim you want to revisit — even if you never promote it to full reading.',
+            }
+          : { h: 'No summaries', p: '' };
+    root.innerHTML = `<div class="empty-state">
+      <h3>${empty.h}</h3>
+      <p>${empty.p}</p>
+      <div class="welcome-actions" style="justify-content:center;margin-top:1.25rem">
+        <button type="button" class="primary" id="btn-empty-sums">All summaries</button>
+      </div>
+    </div>`;
+    $('#btn-empty-sums').onclick = () => navigate('summaries');
+    return;
+  }
+
+  const blurb =
+    mode === 'reading-list'
+      ? `<p class="list-blurb">The epic queue — PDFs worth full attention after a deep-skim. Star independently if you also want the notes handy.</p>`
+      : mode === 'starred'
+        ? `<p class="list-blurb">Skims you keep close. Starred ≠ Reading List — you can do both.</p>`
+        : `<p class="list-blurb">Every deep-skim. Use <strong>★ Star</strong> or <strong>Promote to Reading List</strong> after you answer: is it worth reading?</p>`;
+
+  root.innerHTML = `<div class="content-narrow">
+    ${blurb}
+    <div class="shelf-tabs" role="tablist">
+      <button type="button" class="chip ${mode === 'all' ? 'active' : ''}" data-shelf="summaries">All</button>
+      <button type="button" class="chip ${mode === 'reading-list' ? 'active' : ''}" data-shelf="reading-list">Reading List (${all.filter((s) => s.status === 'promote').length})</button>
+      <button type="button" class="chip ${mode === 'starred' ? 'active' : ''}" data-shelf="starred">★ Starred (${all.filter((s) => s.starred).length})</button>
+    </div>
+    <div class="card-list">${sums
+      .map(
+        (s) => `
     <article class="card clickable" data-open-sum="${s.id}">
       <div>
         <h3>${escapeHtml(s.title)}</h3>
         <div class="meta">
-          <span class="pill ${s.status === 'core' ? 'core' : s.status === 'archive' ? 'low' : ''}">${escapeHtml(s.status)}</span>
-          ${(s.tags || []).map((t) => `<span class="pill">${escapeHtml(t)}</span>`).join('')}
+          ${summaryDecisionPillsHtml(s)}
           <span>${formatDate(s.createdAt)}</span>
           <span>${(s.questions || []).length} recall Qs</span>
         </div>
@@ -1305,9 +1390,14 @@ async function renderSummaries(root, actions) {
         <button type="button" data-quiz="${s.id}">Quiz</button>
       </div>
     </article>`
-    )
-    .join('')}</div></div>`;
+      )
+      .join('')}
+    </div>
+  </div>`;
 
+  root.querySelectorAll('[data-shelf]').forEach((btn) => {
+    btn.addEventListener('click', () => navigate(btn.dataset.shelf));
+  });
   root.querySelectorAll('[data-open-sum]').forEach((el) => {
     el.addEventListener('click', (e) => {
       if (e.target.closest('button')) return;
@@ -1353,18 +1443,23 @@ async function renderSummary(root, actions, summaryId) {
       <header class="reading-header">
         <h1 id="sum-title-display">${escapeHtml(s.title)}</h1>
         <div class="meta" style="display:flex;flex-wrap:wrap;gap:0.5rem;font-size:0.85rem;color:var(--text-muted)">
-          <span class="pill ${s.status === 'core' ? 'core' : ''}">${escapeHtml(s.status)}</span>
+          ${summaryDecisionPillsHtml(s)}
           <span>${formatDate(s.createdAt)}</span>
           ${doc ? `<span title="Source PDF">${escapeHtml(doc.title || doc.name)}</span>` : ''}
           <span>${escapeHtml(s.model || '')}</span>
-          ${(s.tags || []).map((t) => `<span class="pill">${escapeHtml(t)}</span>`).join('')}
+          ${(s.tags || []).filter((t) => t !== 'full-reading').map((t) => `<span class="pill">${escapeHtml(t)}</span>`).join('')}
         </div>
-        <div class="topbar-actions" style="margin-top:0.85rem">
+        <p class="decision-prompt">Is it worth reading? Star the skim to keep notes handy — promote when the <em>book</em> deserves full attention.</p>
+        <div class="topbar-actions decision-actions" style="margin-top:0.65rem">
           <button type="button" id="btn-rename-sum">Rename skim</button>
-          <button type="button" data-status="core">Mark core</button>
-          <button type="button" data-status="archive">Archive</button>
-          <button type="button" data-status="promote">Promote to full reading</button>
-          <button type="button" data-status="inbox">Inbox</button>
+          <button type="button" class="${s.starred ? 'primary' : ''}" id="btn-toggle-star" title="Keep this deep-skim handy">
+            ${s.starred ? '★ Starred' : '☆ Star'}
+          </button>
+          <button type="button" class="${s.status === 'promote' ? 'primary' : ''}" id="btn-toggle-reading" title="Epic full-reading queue">
+            ${s.status === 'promote' ? 'On Reading List' : 'Promote to Reading List'}
+          </button>
+          <button type="button" id="btn-toggle-archive">${s.status === 'archive' ? 'Unarchive' : 'Archive'}</button>
+          ${s.status === 'promote' ? `<button type="button" class="ghost" id="btn-open-reading-list">Open Reading List →</button>` : ''}
         </div>
       </header>
       <div class="section-stack">
@@ -1457,16 +1552,38 @@ async function renderSummary(root, actions, summaryId) {
     navigate('summaries');
   };
 
-  root.querySelectorAll('[data-status]').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const status = btn.dataset.status;
-      const tags = new Set(s.tags || []);
-      if (status === 'promote') tags.add('full-reading');
-      await updateSummary(summaryId, { status, tags: [...tags], notes: getNotes() });
-      toast(`Marked as ${status}`);
-      navigate('summary', { summaryId });
-    });
+  $('#btn-toggle-star')?.addEventListener('click', async () => {
+    const next = !s.starred;
+    await updateSummary(summaryId, { starred: next, notes: getNotes() });
+    toast(next ? 'Starred — find it under Starred' : 'Removed star');
+    navigate('summary', { summaryId });
   });
+
+  $('#btn-toggle-reading')?.addEventListener('click', async () => {
+    const onList = s.status === 'promote';
+    if (onList) {
+      await updateSummary(summaryId, { status: 'inbox', notes: getNotes() });
+      toast('Removed from Reading List');
+      navigate('summary', { summaryId });
+    } else {
+      await updateSummary(summaryId, { status: 'promote', notes: getNotes() });
+      toast('Added to Reading List');
+      // Land on the epic queue so the decision is visible
+      navigate('reading-list');
+    }
+  });
+
+  $('#btn-toggle-archive')?.addEventListener('click', async () => {
+    const archived = s.status === 'archive';
+    await updateSummary(summaryId, {
+      status: archived ? 'inbox' : 'archive',
+      notes: getNotes(),
+    });
+    toast(archived ? 'Back in inbox' : 'Archived — not investing more time');
+    navigate('summary', { summaryId });
+  });
+
+  $('#btn-open-reading-list')?.addEventListener('click', () => navigate('reading-list'));
 }
 
 // ── Quiz ───────────────────────────────────────────────────

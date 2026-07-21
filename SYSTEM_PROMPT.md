@@ -17,6 +17,8 @@ Long sources use **multipass maps** + **staged write** (parts A/B/C) so output c
 
 See `src/generation/prompt.js` for the exact system prompt and `src/generation/depth.js` for scaling tables.
 
+§8 ends with a reading decision the UI mirrors: **Archive** · **Star / keep skim** · **Promote to Reading List** (full PDF).
+
 ## Research lenses (user-customizable)
 
 §6 **Connections to Existing Knowledge** is driven by **Settings → Research lenses**, not a hard-coded academic stack.

@@ -228,7 +228,7 @@ One short paragraph: the best honest attack on the work’s center.
 - Gaps, ambiguities, under-argued moves (specific)
 - Regions that resist condensation (formalism, tables, extended cases)
 - What a full read would still uniquely deliver
-- Explicit recommendation: **Archive** | **Core keep** | **Promote to full reading list** — with rationale (2–4 sentences)
+- Explicit recommendation: **Archive** | **Star / keep skim** | **Promote to full Reading List** — with rationale (2–4 sentences). Star = condensed notes are enough to keep; Reading List = the source PDF is worth full attention.
 - If the work is very long (~350+ pages), add a short **multi-week strategy** (Week 1 pages a–b, Week 2 …) as an optional plan
 
 ## 9. Core Reading Segments (source long-reads)

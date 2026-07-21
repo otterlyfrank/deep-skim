@@ -451,11 +451,36 @@ export async function getExtraction(documentId) {
 // ── Summaries ──────────────────────────────────────────────
 
 /**
- * @typedef {'inbox' | 'core' | 'archive' | 'promote'} SummaryStatus
+ * Decision model (Is it worth reading?):
+ * - status: inbox | archive | promote (promote = Reading List)
+ * - starred: keep the skim handy without necessarily full-reading the PDF
+ * Legacy status `core` is normalized to starred=true, status=inbox.
+ * @typedef {'inbox' | 'archive' | 'promote' | 'core'} SummaryStatus
  */
+
+function normalizeSummaryFields(summary) {
+  let status = summary.status || 'inbox';
+  let starred = !!summary.starred;
+  // Migrate legacy "Mark core"
+  if (status === 'core') {
+    starred = true;
+    status = 'inbox';
+  }
+  if (!['inbox', 'archive', 'promote'].includes(status)) {
+    status = 'inbox';
+  }
+  const tags = Array.isArray(summary.tags) ? [...summary.tags] : [];
+  if (status === 'promote' && !tags.includes('full-reading')) tags.push('full-reading');
+  if (status !== 'promote') {
+    const i = tags.indexOf('full-reading');
+    if (i >= 0) tags.splice(i, 1);
+  }
+  return { status, starred, tags };
+}
 
 export async function putSummary(summary) {
   const now = Date.now();
+  const { status, starred, tags } = normalizeSummaryFields(summary);
   const record = {
     id: summary.id || uuid(),
     documentId: summary.documentId,
@@ -465,8 +490,9 @@ export async function putSummary(summary) {
     questions: summary.questions || [],
     /** Personal reflections appended on export */
     notes: summary.notes || '',
-    status: summary.status || 'inbox', // inbox | core | archive | promote
-    tags: summary.tags || [],
+    status, // inbox | archive | promote (Reading List)
+    starred,
+    tags,
     model: summary.model || null,
     projectId: summary.projectId || null,
     projectWeek: summary.projectWeek ?? null,
@@ -484,15 +510,35 @@ export async function putSummary(summary) {
   return record;
 }
 
+function hydrateSummary(s) {
+  if (!s) return s;
+  const { status, starred, tags } = normalizeSummaryFields(s);
+  return { ...s, status, starred, tags };
+}
+
 export async function getSummary(id) {
   const t = await tx(['summaries']);
-  return reqToPromise(t.objectStore('summaries').get(id));
+  return hydrateSummary(await reqToPromise(t.objectStore('summaries').get(id)));
 }
 
 export async function listSummaries() {
   const t = await tx(['summaries']);
   const all = await reqToPromise(t.objectStore('summaries').getAll());
-  return all.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  return all
+    .map(hydrateSummary)
+    .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+}
+
+/** Epic full-reading queue — promote decisions */
+export async function listReadingList() {
+  const all = await listSummaries();
+  return all.filter((s) => s.status === 'promote' || (s.tags || []).includes('full-reading'));
+}
+
+/** Starred skims to revisit (independent of Reading List) */
+export async function listStarredSummaries() {
+  const all = await listSummaries();
+  return all.filter((s) => s.starred);
 }
 
 export async function updateSummary(id, patch) {

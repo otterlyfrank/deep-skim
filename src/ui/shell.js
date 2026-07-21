@@ -24,6 +24,14 @@ export function shellHtml() {
             ${icons.summaries}<span>Summaries</span>
             <span class="badge" id="nav-sum-count">0</span>
           </button>
+          <button class="nav-btn" data-nav="reading-list" type="button" title="Full books worth sitting with">
+            ${icons.readingList}<span>Reading List</span>
+            <span class="badge" id="nav-reading-count">0</span>
+          </button>
+          <button class="nav-btn" data-nav="starred" type="button" title="Starred deep-skims to revisit">
+            ${icons.star}<span>Starred</span>
+            <span class="badge" id="nav-star-count">0</span>
+          </button>
           <button class="nav-btn" data-nav="review" type="button">
             ${icons.review}<span>Review</span>
             <span class="badge" id="nav-review-count">0</span>

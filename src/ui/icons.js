@@ -89,4 +89,6 @@ export const icons = {
   back: `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M14 6 8 12l6 6 1.4-1.4L10.8 12l4.6-4.6L14 6z"/></svg>`,
   pdf: `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6 2h8l6 6v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm7 1.5V9h5.5L13 3.5zM8 13h2.2c1.3 0 2.1.7 2.1 1.8S11.5 16.6 10.2 16.6H9.2V19H8v-6zm1.2 1v1.6h.9c.5 0 .8-.3.8-.8s-.3-.8-.8-.8h-.9zm4.1-1H16c1.5 0 2.5.9 2.5 2.3S17.5 17.6 16 17.6h-1.5V19h-1.2v-6zm1.2 1v2.6H16c.8 0 1.3-.5 1.3-1.3s-.5-1.3-1.3-1.3h-.5z"/></svg>`,
   download: `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3v10.2l3.6-3.6L17 11l-5 5-5-5 1.4-1.4L11 13.2V3h1zM5 18h14v2H5v-2z"/></svg>`,
+  star: `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2.5 14.9 9l6.6.5-5 4.3 1.6 6.4L12 16.8 5.9 20.2 7.5 13.8l-5-4.3L9.1 9 12 2.5z"/></svg>`,
+  readingList: `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6 3h11a2 2 0 0 1 2 2v15l-3.5-2L12 20l-3.5-2L5 20V5a2 2 0 0 1 1-2zm1 3v10.2l2.5-1.4L12 16l2.5-1.2 2.5 1.4V6H7zm1 1h8v2H8V7zm0 3h8v2H8v-2z"/></svg>`,
 };

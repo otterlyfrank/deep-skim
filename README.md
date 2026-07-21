@@ -1,5 +1,7 @@
 # Deep-Skim
 
+**v1.11** · See [PATCHNOTES.md](PATCHNOTES.md) for release history.
+
 A **local-first** browser app for one high-quality structured deep-skim per week.
 
 It is built for large PDF libraries and a prioritized *To Be Read ASAP* pile: a **substantial condensed reading** (often ~10–20 note-pages for a ~200pp book; ~25–50 for ~500pp), not a thin abstract — structured so the material sticks (active recall + spaced re-test), private by default (IndexedDB, optional local LLM/OCR only).
@@ -91,7 +93,7 @@ Edit the prompt in `SYSTEM_PROMPT.md` and keep `src/generation/prompt.js` in syn
 | Export | Markdown + print/PDF with ASCII-safe flow diagrams |
 | Reading | Collapsible sections, dark/light, calm typography |
 | Recall | Quiz mode with self-grading; due queue of 2–3 older skims |
-| Status | Mark **core** / **archive** / **promote to full reading** |
+| Worth reading? | **★ Star** (keep skim) · **Reading List** (promote full PDF) · **Archive** — shelves in the sidebar |
 | Export | Markdown download; print dialog → Save as PDF |
 | Search | Local full-text over summary markdown + titles/tags |
 | Research lenses | Settings: edit keywords that drive §6 Connections (and light relevance bias); optional focus note; restore defaults anytime |
