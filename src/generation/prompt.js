@@ -1,11 +1,98 @@
 /**
  * Deep-skim system prompt — keep in sync with /SYSTEM_PROMPT.md
  * Substantial condensed reading (not abstract executive summary).
+ *
+ * §6 personalization lenses are user-editable (Settings → Research lenses).
  */
 
 import { depthBriefMarkdown, estimateDepth } from './depth.js';
 
-export const SYSTEM_PROMPT = `You are a high-signal **condensed reading** partner for a serious independent researcher.
+/**
+ * Default research lenses (ship default = independent research stack).
+ * Users replace/extend these anytime in Settings; stored in IndexedDB.
+ */
+export const DEFAULT_RESEARCH_LENSES_TEXT = [
+  'process philosophy',
+  'schizoanalysis',
+  'political ontology',
+  'immanence / transcendence',
+  'assemblage / multiplicity',
+  'critique of representational capture',
+  'praxis / institutions',
+].join('\n');
+
+/**
+ * Parse freeform lenses: one per line, or comma / · / ; separated.
+ * @param {string|string[]|null|undefined} raw
+ * @returns {string[]}
+ */
+export function parseResearchLenses(raw) {
+  if (Array.isArray(raw)) {
+    return raw.map((s) => String(s).trim()).filter(Boolean);
+  }
+  const text = String(raw ?? '').trim();
+  if (!text) return [];
+  return text
+    .split(/[\n,;·•|]+/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .filter((s, i, arr) => arr.findIndex((t) => t.toLowerCase() === s.toLowerCase()) === i);
+}
+
+/**
+ * Normalize personalization from settings (or explicit overrides).
+ * @param {object} [settings]
+ */
+export function resolvePersonalization(settings = {}) {
+  const lensesRaw =
+    settings.researchLensesText ??
+    settings.researchLenses ??
+    DEFAULT_RESEARCH_LENSES_TEXT;
+  let lenses = parseResearchLenses(lensesRaw);
+  if (!lenses.length) {
+    lenses = parseResearchLenses(DEFAULT_RESEARCH_LENSES_TEXT);
+  }
+  const focusNote = String(settings.researchFocusNote || '').trim();
+  return { lenses, focusNote };
+}
+
+function formatLensesBullets(lenses) {
+  return lenses.map((l) => `- ${l}`).join('\n');
+}
+
+/**
+ * Block injected into user prompts so generation follows the reader's lenses
+ * without inventing biography or distorting the source.
+ */
+export function readerProfileBrief(settings = {}) {
+  const { lenses, focusNote } = resolvePersonalization(settings);
+  const lines = [
+    '## Reader research profile (customizable in Settings)',
+    'Use this profile for **§6 Connections** and for light relevance bias only.',
+    '**Never invent** the reader’s biography, career, or unpublished views.',
+    '**Never warp** the source to fit the lenses — if a lens does not connect honestly, skip it or mark the non-fit.',
+    '',
+    '### Active research lenses / keywords',
+    formatLensesBullets(lenses),
+  ];
+  if (focusNote) {
+    lines.push('', '### Focus note (reader-supplied)', focusNote);
+  }
+  return lines.join('\n');
+}
+
+/**
+ * Build the full system prompt with the current user's research lenses.
+ * @param {object} [settings]
+ */
+export function buildSystemPrompt(settings = {}) {
+  const { lenses, focusNote } = resolvePersonalization(settings);
+  const lensBlock = formatLensesBullets(lenses);
+  const focusBlock = focusNote
+    ? `\nOptional reader focus note (do not invent beyond this):\n> ${focusNote.replace(/\n+/g, ' ')}`
+    : '';
+
+  return `You are a high-signal **condensed reading** partner for a serious independent researcher.
 
 Your job is **not** a blurb, study-guide teaser, abstract, or “key takeaways” card.
 Your job is a **structured condensed reading** thorough enough to stand in for a careful multi-hour skim of the source — often on the order of **tens of pages of dense notes** for a book-length work — while still using active-recall and stress-testing so the material sticks.
@@ -26,6 +113,7 @@ Think: *reading companion that preserves argumentative flesh*, not *management s
 10. **No invented citations, page numbers, or quotes.**
 11. **Substance over compression theater.** Under-length output that stays abstract **fails** the task even if headings are correct.
 12. **§2 is the main reading.** Most of the word budget belongs there: claim → supporting moves → evidence cues → implications / limits.
+13. **Reader lenses are customizable.** §6 hooks follow the **active research lenses** below. Light relevance bias is allowed; source fidelity always wins.
 
 ### Anti-patterns (fail if you do these)
 
@@ -37,6 +125,7 @@ Think: *reading companion that preserves argumentative flesh*, not *management s
 - Empty stress tests that restate the thesis without downstream consequences
 - One-line “claims” with no mechanism, evidence, or stakes
 - Padding: “seminal,” “must-read,” “in today’s world,” “comprehensive overview”
+- Forcing a lens that has no honest contact with the source
 
 ### Quality bar for claims
 
@@ -108,18 +197,21 @@ Provide many precise questions (see depth target). Format:
 Mix question types. Ban “What is this book about?” and pure vocab quizzes unless load-bearing.
 
 ## 6. Connections to Existing Knowledge
-Personalization **seeds** — do not invent the reader’s biography. Prefer hooks toward:
-- process philosophy · schizoanalysis · political ontology
-- immanence / transcendence · assemblage / multiplicity
-- critique of representational capture · praxis / institutions
+Personalization **seeds** — do not invent the reader’s biography.
+Prefer hooks toward the **active research lenses** the reader configured (Settings). Current set:
+
+${lensBlock}
+${focusBlock}
 
 For each hook:
-- **Hook:** …
+- **Hook:** … (use a lens name or a tight composite of 1–2 lenses when they honestly connect)
 - **Tension or resonance:** concrete (what in *this* text confirms/complicates/contradicts)
 - **Open question for the reader:** …
 
+Skip lenses with no real contact. You may add **one** extra honest hook if the source strongly suggests a neighboring domain not listed — mark it *(adjacent)*.
+
 End with:
-> *Reader note: replace or extend these hooks with your own notes after review.*
+> *Reader note: replace or extend these hooks with your own notes after review. Lenses are editable in Settings → Research lenses.*
 
 ## 7. Dual-Pressure Stress Test
 
@@ -173,6 +265,10 @@ Input -> Process -> Output
 ### Voice
 
 Calm, precise, slightly severe. Prefer short paragraphs and sharp bullets — but **enough of them** to carry a real reading. Never moralize. Never pad with praise. Never collapse into abstract summary voice.`;
+}
+
+/** Default system prompt (ship lenses) — prefer buildSystemPrompt(settings) at runtime. */
+export const SYSTEM_PROMPT = buildSystemPrompt({});
 
 /**
  * Build the user message for a (single-shot) deep-skim request.
@@ -185,6 +281,7 @@ export function buildUserPrompt({
   depth = null,
   sourceChars = 0,
   scopeBrief = '',
+  settings = null,
 }) {
   const d =
     depth ||
@@ -203,9 +300,11 @@ export function buildUserPrompt({
           )
           .join('\n');
 
+  const profile = settings ? readerProfileBrief(settings) + '\n\n' : '';
+
   return `Produce a **substantial condensed reading** (structured deep-skim) for the following source.
 
-${scopeBrief ? scopeBrief + '\n\n' : ''}${depthBriefMarkdown(d)}
+${scopeBrief ? scopeBrief + '\n\n' : ''}${profile}${depthBriefMarkdown(d)}
 
 ## Document metadata
 - Filename: ${meta.filename || 'unknown'}
@@ -229,8 +328,9 @@ ${text}
 3. Verbatim count and recall count meet the depth table
 4. §9 page ranges are concrete integers (e.g. 12–19), sized for a genuine sit-down long-read
 5. Flow diagrams use ASCII \`->\` inside fenced code blocks
-6. No abstract “the author discusses…” voice
-7. Markdown only — no preamble, no closing chat
+6. §6 hooks follow the reader research lenses (honest connections only)
+7. No abstract “the author discusses…” voice
+8. Markdown only — no preamble, no closing chat
 
 Begin the condensed reading now. Aim for the target length; short abstract output fails.`;
 }
@@ -246,9 +346,11 @@ export function buildStagedPartPrompt({
   material,
   priorParts = '',
   scopeBrief = '',
+  settings = null,
 }) {
   const d = depth;
-  const common = `${scopeBrief ? scopeBrief + '\n\n' : ''}${depthBriefMarkdown(d)}
+  const profile = settings ? readerProfileBrief(settings) + '\n\n' : '';
+  const common = `${scopeBrief ? scopeBrief + '\n\n' : ''}${profile}${depthBriefMarkdown(d)}
 
 ## Document metadata
 - Title hint: ${meta.title || 'unknown'}
@@ -275,6 +377,7 @@ ${priorParts ? `## Notes from earlier stages\n${priorParts}\n` : ''}
 - Each claim uses the full block form (Stakes / How the argument works / Supporting moves / Evidence / Limits)
 - **~${d.wordsPerClaimMin}–${d.wordsPerClaimMax} words of prose per top-level claim**
 - Cover early → late spine of the work using the material
+- Light relevance bias toward the reader’s research lenses is fine; source fidelity first
 - Markdown only. Stop after §2. No §3–§8 yet.`;
   }
 
@@ -297,7 +400,9 @@ ${priorParts}
   }
 
   // Part C
-  return `Write **Part C only**: §5–§8 of the condensed reading.
+  const { lenses } = resolvePersonalization(settings || {});
+  const lensHint = formatLensesBullets(lenses);
+  return `Write **Part C only**: §5–§9 of the condensed reading.
 
 ${common}
 
@@ -312,7 +417,8 @@ ${priorParts}
   \`## 8. What Remains Unclear / Worth Full Reading\`
   \`## 9. Core Reading Segments (source long-reads)\`
 - Recall: **${d.recallMin}–${d.recallMax}** Q/A with **paragraph-length model answers**
-- Hooks: **${d.hooksMin}–${d.hooksMax}** with real tensions
+- Hooks: **${d.hooksMin}–${d.hooksMax}** with real tensions, drawn primarily from these reader lenses:
+${lensHint}
 - Stress test: specific, multi-bullet, claim-aware
 - §8: specific gaps + recommendation with 2–4 sentence rationale; multi-week plan if work is huge
 - §9: **1–5 concrete page ranges** (e.g. Pages: 14–22) for core long-reads the reader should still sit with

@@ -6,9 +6,10 @@
  */
 
 import {
-  SYSTEM_PROMPT,
+  buildSystemPrompt,
   buildUserPrompt,
   buildStagedPartPrompt,
+  resolvePersonalization,
 } from './prompt.js';
 import { estimateDepth } from './depth.js';
 import { parseDeepSkimMarkdown } from './parser.js';
@@ -336,6 +337,7 @@ async function stagedCondensedWrite({
       material,
       priorParts,
       scopeBrief,
+      settings,
     });
     const { content, model } = await chatCompletion({
       baseUrl: settings.llmBaseUrl,
@@ -344,7 +346,7 @@ async function stagedCondensedWrite({
       temperature: 0.25,
       maxTokens: 16384,
       messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'system', content: buildSystemPrompt(settings) },
         { role: 'user', content: user },
       ],
       retries: MULTIPASS_DEFAULTS.maxRetries,
@@ -432,6 +434,7 @@ async function generateDeepSkimSingle({
       depth,
       sourceChars: source.length,
       scopeBrief,
+      settings,
     });
     const { content, model } = await chatCompletion({
       baseUrl: settings.llmBaseUrl,
@@ -439,7 +442,7 @@ async function generateDeepSkimSingle({
       model: settings.llmModel,
       maxTokens: 16384,
       messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'system', content: buildSystemPrompt(settings) },
         { role: 'user', content: user },
       ],
       onProgress,
@@ -634,7 +637,7 @@ async function generateDeepSkimMultipass({
       temperature: 0.25,
       maxTokens: 16384,
       messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'system', content: buildSystemPrompt(settings) },
         { role: 'user', content: reduceUser },
       ],
       retries: MULTIPASS_DEFAULTS.maxRetries,
@@ -882,10 +885,19 @@ export async function checkLlm(baseUrl, apiKey = '') {
 
 /**
  * Demo / offline stub when no LLM is available.
+ * @param {{ document: object, extraction: object, settings?: object }} args
  */
-export function generateStubDeepSkim({ document, extraction }) {
+export function generateStubDeepSkim({ document, extraction, settings = {} }) {
   const title = document.title || document.name || 'Untitled';
   const sample = (extraction.text || '').slice(0, 600).replace(/\n+/g, ' ');
+  const { lenses } = resolvePersonalization(settings);
+  const hookBlock = (lenses.length ? lenses : resolvePersonalization({}).lenses)
+    .slice(0, 3)
+    .map(
+      (hook) =>
+        `- **Hook:** ${hook}\n  - **Tension or resonance:** After real generation, ask how this lens contacts (or fails to contact) the source.\n  - **Open question for the reader:** What does this text do to your working model of “${hook}”?`
+    )
+    .join('\n');
   const markdown = `# ${title}
 
 ## 1. Title + Bibliographic Note
@@ -934,17 +946,9 @@ export function generateStubDeepSkim({ document, extraction }) {
 ## 6. Connections to Existing Knowledge
 **Personalization placeholder — seed for later editing.**
 
-- **Hook:** process philosophy
-  - **Tension or resonance:** After real generation, ask how becoming/process is framed (or denied) in the source.
-  - **Open question for the reader:** Where does this text sit relative to Whiteheadian / Deleuzian process?
-- **Hook:** schizoanalysis
-  - **Tension or resonance:** Watch for molar/molecular, desire, and institutional capture once claims are real.
-  - **Open question for the reader:** Does the argument reterritorialize or open lines of flight?
-- **Hook:** political ontology
-  - **Tension or resonance:** Identify what counts as a political entity or force in the text.
-  - **Open question for the reader:** What ontology of power is presupposed?
+${hookBlock}
 
-> *Reader note: replace or extend these hooks with your own notes after review.*
+> *Reader note: replace or extend these hooks with your own notes after review. Edit lenses anytime in Settings → Research lenses.*
 
 ## 7. Dual-Pressure Stress Test
 

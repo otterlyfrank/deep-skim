@@ -40,6 +40,7 @@ import {
   reextractDocument,
 } from './lib/ingest.js';
 import { generateDeepSkim, generateStubDeepSkim, checkLlm } from './generation/llm.js';
+import { DEFAULT_RESEARCH_LENSES_TEXT } from './generation/prompt.js';
 import { markdownToHtml } from './generation/parser.js';
 import {
   LLM_PROVIDERS,
@@ -919,7 +920,11 @@ async function runGenerate(docId, opts = {}) {
         `LLM call failed:\n${msg}\n\nGenerate a local stub summary so you can still use the UI?`
       );
       if (!useStub) throw llmErr;
-      const stub = generateStubDeepSkim({ document: doc, extraction: ext });
+      const stub = generateStubDeepSkim({
+        document: doc,
+        extraction: ext,
+        settings: settingsCache,
+      });
       result = {
         title: stub.title,
         markdown: stub.markdown,
@@ -1868,6 +1873,39 @@ async function renderSettings(root, actions) {
           </div>
         </fieldset>
 
+        <fieldset class="settings-block" id="research-lenses-block">
+          <legend>Research lenses</legend>
+          <p class="help" style="margin-top:0">
+            Customize how deep-skims personalize <strong>§6 Connections</strong> (and light relevance bias elsewhere).
+            The structure of the report stays fixed; only the <em>hooks and keywords</em> change.
+            Edit anytime — next generate uses the saved set. Stored only in this browser.
+          </p>
+          <div class="field">
+            <label for="researchLensesText">Keywords / lenses (one per line)</label>
+            <textarea
+              id="researchLensesText"
+              class="settings-textarea"
+              rows="8"
+              spellcheck="false"
+              placeholder="e.g.&#10;behavioral economics&#10;institutional design&#10;media archaeology"
+            >${escapeHtml(settingsCache.researchLensesText || '')}</textarea>
+            <div class="help">Commas also work. Empty → ship defaults restore on save. Clear and type your own stack for a different research practice.</div>
+          </div>
+          <div class="field">
+            <label for="researchFocusNote">Focus note (optional)</label>
+            <textarea
+              id="researchFocusNote"
+              class="settings-textarea"
+              rows="3"
+              placeholder="e.g. PhD on assemblage theory · SchizoFringe monthly episode prep · comparative institutional history…"
+            >${escapeHtml(settingsCache.researchFocusNote || '')}</textarea>
+            <div class="help">Short context for the model (project, show, dissertation). Never invents a biography beyond what you write here.</div>
+          </div>
+          <div class="field row-actions">
+            <button type="button" class="ghost" id="btn-reset-lenses">Restore ship defaults</button>
+          </div>
+        </fieldset>
+
         <div id="settings-status" class="status-line">Free path: Use free Gemini → paste AI Studio key → Save → Test connection.</div>
       </form>
 
@@ -2051,6 +2089,11 @@ async function renderSettings(root, actions) {
       status.className = 'status-line err';
       return;
     }
+    let lensesText = ($('#researchLensesText')?.value || '').trim();
+    if (!lensesText) {
+      lensesText = DEFAULT_RESEARCH_LENSES_TEXT;
+      if ($('#researchLensesText')) $('#researchLensesText').value = lensesText;
+    }
     settingsCache = await setSettings({
       llmProvider: provider,
       llmBaseUrl: $('#llmBaseUrl').value.trim(),
@@ -2067,12 +2110,24 @@ async function renderSettings(root, actions) {
       weeklyReminderEnabled: $('#weeklyReminderEnabled').checked,
       projectPagesPerWeek: Math.min(400, Math.max(80, Number($('#projectPagesPerWeek')?.value) || 200)),
       privacyAckCloud: $('#privacyAckCloud').checked,
+      researchLensesText: lensesText,
+      researchFocusNote: ($('#researchFocusNote')?.value || '').trim(),
     });
     status.textContent = 'Saved locally in IndexedDB.';
     status.className = 'status-line ok';
     toast('Settings saved');
     probeServices();
   };
+
+  const resetLensesBtn = $('#btn-reset-lenses');
+  if (resetLensesBtn) {
+    resetLensesBtn.onclick = () => {
+      if ($('#researchLensesText')) {
+        $('#researchLensesText').value = DEFAULT_RESEARCH_LENSES_TEXT;
+      }
+      toast('Ship default lenses restored in the form — Save to keep');
+    };
+  }
 
   $('#btn-test-llm').onclick = async () => {
     status.textContent = 'Testing LLM…';

@@ -94,6 +94,7 @@ Edit the prompt in `SYSTEM_PROMPT.md` and keep `src/generation/prompt.js` in syn
 | Status | Mark **core** / **archive** / **promote to full reading** |
 | Export | Markdown download; print dialog → Save as PDF |
 | Search | Local full-text over summary markdown + titles/tags |
+| Research lenses | Settings: edit keywords that drive §6 Connections (and light relevance bias); optional focus note; restore defaults anytime |
 
 ## Architecture
 

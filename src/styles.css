@@ -1226,9 +1226,28 @@ details.section[open] > summary::before {
 .settings-form input[type='text'],
 .settings-form input[type='url'],
 .settings-form input[type='password'],
-.settings-form input[type='number'] {
+.settings-form input[type='number'],
+.settings-form textarea.settings-textarea {
   width: 100%;
   max-width: 100%;
+}
+
+.settings-form textarea.settings-textarea {
+  min-height: 5.5rem;
+  resize: vertical;
+  font-family: var(--font-mono);
+  font-size: 0.86rem;
+  line-height: 1.45;
+  padding: 0.55rem 0.65rem;
+  border-radius: calc(var(--radius) - 2px);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+}
+
+#researchFocusNote.settings-textarea {
+  font-family: var(--font-sans, inherit);
+  font-size: 0.9rem;
 }
 
 #llmModelSelect {

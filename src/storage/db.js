@@ -3,6 +3,8 @@
  * Stores: documents, extractions, summaries, reviews, settings.
  */
 
+import { DEFAULT_RESEARCH_LENSES_TEXT } from '../generation/prompt.js';
+
 const DB_NAME = 'deep-skim';
 const DB_VERSION = 2;
 
@@ -731,6 +733,13 @@ const DEFAULT_SETTINGS = {
   privacyAckCloud: false,
   /** Default pages per week when creating multi-week projects */
   projectPagesPerWeek: 200,
+  /**
+   * Research lenses / keywords for §6 Connections (and light relevance bias).
+   * One per line preferred; commas also work. Editable anytime in Settings.
+   */
+  researchLensesText: DEFAULT_RESEARCH_LENSES_TEXT,
+  /** Optional freeform note: project, dissertation angle, show focus, etc. */
+  researchFocusNote: '',
 };
 
 export async function getSettings() {
