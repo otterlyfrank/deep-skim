@@ -1,12 +1,19 @@
 {
   "name": "deep-skim",
-  "version": "1.12.0",
-  "private": true,
+  "version": "1.13.0",
+  "private": false,
   "type": "module",
   "description": "Local-first deep-skim reading system",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/otterlyfrank/deep-skim-v1.0.git"
+  },
   "scripts": {
     "start": "python3 -m http.server 8080",
     "serve": "python3 -m http.server 8080",
+    "test": "node tests/unit.test.js",
     "ocr-bridge": "python3 scripts/ocr_bridge.py --port 8765"
-  }
+  },
+  "keywords": ["local-first", "reading", "pdf", "spaced-repetition", "pwa"]
 }

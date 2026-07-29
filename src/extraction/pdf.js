@@ -9,17 +9,33 @@ import { assessDocumentQuality, findDiagramHeavyPages } from './quality.js';
 import { checkOcrBridge, ocrPdfViaBridge, ocrPagesViaBridge } from './ocr-bridge.js';
 import { canUseCloudOcr, ocrPdfPagesViaCloud, ocrPagesViaCloud } from './cloud-ocr.js';
 
+/** Prefer vendored copy under public/pdfjs for offline / PWA; CDN fallback. */
+const PDFJS_LOCAL = new URL('../../public/pdfjs/pdf.min.mjs', import.meta.url).href;
+const PDFJS_WORKER_LOCAL = new URL('../../public/pdfjs/pdf.worker.min.mjs', import.meta.url).href;
 const PDFJS_CDN = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs';
-const PDFJS_WORKER = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
+const PDFJS_WORKER_CDN = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
 
 /** @type {any} */
 let pdfjsLib = null;
 
 async function loadPdfJs() {
   if (pdfjsLib) return pdfjsLib;
-  pdfjsLib = await import(PDFJS_CDN);
-  pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
+  try {
+    pdfjsLib = await import(/* @vite-ignore */ PDFJS_LOCAL);
+    pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_LOCAL;
+  } catch (err) {
+    console.warn('[Deep-Skim] local pdf.js missing — using CDN', err?.message || err);
+    pdfjsLib = await import(/* @vite-ignore */ PDFJS_CDN);
+    pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_CDN;
+  }
   return pdfjsLib;
+}
+
+function yieldToMain() {
+  return new Promise((r) => {
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => r());
+    else setTimeout(r, 0);
+  });
 }
 
 /**
@@ -48,6 +64,7 @@ export async function extractNativeText(pdf, { onProgress } = {}) {
     const content = await page.getTextContent();
     const text = rebuildReadingOrder(content);
     pageTexts.push(text);
+    if (i % 4 === 0) await yieldToMain();
   }
 
   onProgress?.({ stage: 'native', message: 'Native extraction complete', percent: 100 });
@@ -210,6 +227,8 @@ export async function extractDocument(arrayBuffer, {
   let method = 'native';
   let markdown = pagesToMarkdown(nativePages);
   let ocrFigures = [];
+  /** @type {{ pagesOcrd?: number, totalPages?: number } | null} */
+  let ocrSample = null;
 
   const ocrUrl = settings.ocrBridgeUrl;
   const ocrProvider = settings.ocrProvider || 'auto';
@@ -260,6 +279,17 @@ export async function extractDocument(arrayBuffer, {
             markdown = result.markdown;
             pageTexts = result.pageTexts;
             method = result.method || 'gemini-vision';
+            ocrSample = {
+              pagesOcrd: result.pagesOcrd,
+              totalPages: result.totalPages,
+            };
+            if (result.pagesOcrd < result.totalPages) {
+              onProgress?.({
+                stage: 'ocr',
+                message: `Cloud OCR sampled ${result.pagesOcrd} of ${result.totalPages} pages (free-tier cap)`,
+                percent: 70,
+              });
+            }
             done = true;
           }
         } else if (assessment.quality === 'medium') {
@@ -300,7 +330,8 @@ export async function extractDocument(arrayBuffer, {
 
     // Optional local bridge (advanced / offline vision models)
     if (!done && (preferLocal || ocrProvider === 'auto') && ocrUrl) {
-      const health = await checkOcrBridge(ocrUrl);
+      const ocrToken = settings.ocrBridgeToken || '';
+      const health = await checkOcrBridge(ocrUrl, { token: ocrToken });
       if (health.ok) {
         ocrAttempted = true;
         try {
@@ -315,6 +346,7 @@ export async function extractDocument(arrayBuffer, {
               provider,
               filename,
               onProgress,
+              token: ocrToken,
             });
             if (result.markdown && result.markdown.trim().length > markdown.trim().length * 0.5) {
               markdown = result.markdown;
@@ -341,6 +373,7 @@ export async function extractDocument(arrayBuffer, {
               const ocrPages = await ocrPagesViaBridge(ocrUrl, pageBlobs, {
                 provider,
                 onProgress,
+                token: ocrToken,
               });
               const merged = [...nativePages];
               for (const op of ocrPages) {
@@ -411,7 +444,19 @@ export async function extractDocument(arrayBuffer, {
     method,
     quality: finalAssessment.quality,
     qualityScore: finalAssessment.qualityScore,
-    stats: finalAssessment.stats,
+    stats: {
+      ...(finalAssessment.stats || {}),
+      ...(ocrSample
+        ? {
+            ocrPagesSampled: ocrSample.pagesOcrd,
+            ocrPagesTotal: ocrSample.totalPages,
+            ocrSampleNote:
+              ocrSample.pagesOcrd < ocrSample.totalPages
+                ? `Cloud OCR sampled ${ocrSample.pagesOcrd} of ${ocrSample.totalPages} pages (Settings → cloud OCR max pages)`
+                : null,
+          }
+        : {}),
+    },
     figures: figures.map(({ figureId, page, caption }) => ({ figureId, page, caption })),
     figureBlobs: figures.filter((f) => f.blob),
     needsOcr: assessment.needsOcr,

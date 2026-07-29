@@ -6,6 +6,7 @@ import { installUiHtml } from '../pwa.js';
 
 export function shellHtml() {
   return `
+    <a class="skip-link" href="#view-root">Skip to content</a>
     <div class="sidebar-backdrop" id="sidebar-backdrop" hidden></div>
     <div class="app-shell">
       <aside class="sidebar" id="sidebar" aria-label="Main navigation">
@@ -25,28 +26,31 @@ export function shellHtml() {
             ${icons.summaries}<span>Summaries</span>
             <span class="badge" id="nav-sum-count">0</span>
           </button>
-          <button class="nav-btn" data-nav="reading-list" type="button" title="Full books worth sitting with">
-            ${icons.readingList}<span>Reading List</span>
-            <span class="badge" id="nav-reading-count">0</span>
-          </button>
-          <button class="nav-btn" data-nav="starred" type="button" title="Starred deep-skims to revisit">
-            ${icons.star}<span>Starred</span>
-            <span class="badge" id="nav-star-count">0</span>
-          </button>
           <button class="nav-btn" data-nav="review" type="button">
             ${icons.review}<span>Review</span>
             <span class="badge" id="nav-review-count">0</span>
           </button>
-          <button class="nav-btn" data-nav="projects" type="button">
-            ${icons.library}<span>Projects</span>
-            <span class="badge" id="nav-proj-count">0</span>
-          </button>
-          <button class="nav-btn" data-nav="search" type="button">
-            ${icons.search}<span>Search</span>
-          </button>
           <button class="nav-btn" data-nav="settings" type="button">
             ${icons.settings}<span>Settings</span>
           </button>
+          <details class="nav-more" id="nav-more">
+            <summary class="nav-more-sum">${icons.more || ''}<span>More</span></summary>
+            <button class="nav-btn" data-nav="reading-list" type="button" title="Full books worth sitting with">
+              ${icons.readingList}<span>Reading List</span>
+              <span class="badge" id="nav-reading-count">0</span>
+            </button>
+            <button class="nav-btn" data-nav="starred" type="button" title="Starred deep-skims to revisit">
+              ${icons.star}<span>Starred</span>
+              <span class="badge" id="nav-star-count">0</span>
+            </button>
+            <button class="nav-btn" data-nav="projects" type="button">
+              ${icons.projects || icons.library}<span>Projects</span>
+              <span class="badge" id="nav-proj-count">0</span>
+            </button>
+            <button class="nav-btn" data-nav="search" type="button">
+              ${icons.search}<span>Search</span>
+            </button>
+          </details>
         </nav>
 
         <div class="sidebar-panel">
@@ -73,6 +77,9 @@ export function shellHtml() {
             </div>
           </div>
           <div class="pwa-side-slot" id="pwa-side-slot">${installUiHtml('compact')}</div>
+          <p class="sidebar-support">
+            <a href="https://ko-fi.com/otterlyfrank" target="_blank" rel="noopener">Support on Ko-fi</a>
+          </p>
           <button class="ghost theme-toggle" id="btn-theme" type="button" aria-label="Toggle theme">
             <span id="theme-icon">${icons.sun}</span>
             <span id="theme-label">Light mode</span>
@@ -82,7 +89,7 @@ export function shellHtml() {
 
       <div class="main">
         <header class="topbar">
-          <button class="menu-toggle ghost icon-btn" id="btn-menu" type="button" aria-label="Open menu">
+          <button class="menu-toggle ghost icon-btn" id="btn-menu" type="button" aria-label="Open menu" aria-controls="sidebar" aria-expanded="false">
             ${icons.menu}
           </button>
           <div class="topbar-title-wrap">
@@ -94,6 +101,12 @@ export function shellHtml() {
         <main class="content" id="view-root" tabindex="-1"></main>
       </div>
     </div>
+    <nav class="mobile-nav" aria-label="Primary mobile">
+      <button type="button" class="mobile-nav-btn active" data-nav="library"><span aria-hidden="true">⌂</span>Library</button>
+      <button type="button" class="mobile-nav-btn" data-nav="summaries"><span aria-hidden="true">▤</span>Skims</button>
+      <button type="button" class="mobile-nav-btn" data-nav="review"><span aria-hidden="true">↻</span>Review</button>
+      <button type="button" class="mobile-nav-btn" data-nav="settings"><span aria-hidden="true">⚙</span>More</button>
+    </nav>
     <div class="toast-host" id="toast-host" aria-live="polite"></div>
   `;
 }
@@ -130,14 +143,14 @@ export function welcomeHtml() {
           <span class="step-num">2</span>
           <div>
             <strong>Extract</strong>
-            <p>Native text first; OCR bridge for scans and hard layouts.</p>
+            <p>Native text first; free Gemini cloud OCR for scans (optional local bridge for advanced setups).</p>
           </div>
         </li>
         <li>
           <span class="step-num">3</span>
           <div>
             <strong>Deep-skim</strong>
-            <p>Generate the fixed 8-section format (Gemini free by default). Quiz later.</p>
+            <p>Generate the structured skim (§1–§9). Star, promote, or quiz later.</p>
           </div>
         </li>
       </ol>

@@ -1,5 +1,5 @@
 /* Deep-Skim service worker — shell cache for installability + offline reopen */
-const CACHE = 'deep-skim-shell-v1';
+const CACHE = 'deep-skim-shell-v2';
 
 const PRECACHE = [
   './',
@@ -28,6 +28,8 @@ const PRECACHE = [
   './public/favicon.svg',
   './public/icon-192.png',
   './public/icon-512.png',
+  './public/pdfjs/pdf.min.mjs',
+  './public/pdfjs/pdf.worker.min.mjs',
   './manifest.webmanifest',
 ];
 

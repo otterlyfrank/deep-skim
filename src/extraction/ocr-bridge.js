@@ -14,18 +14,26 @@
  * @param {object} opts
  * @param {'health'|'ocr'} opts.kind
  */
+/**
+ * @param {string} baseUrl
+ * @param {string} path
+ * @param {RequestInit & { timeoutMs?: number, token?: string }} options
+ */
 async function bridgeFetch(baseUrl, path, options = {}) {
   const url = `${baseUrl.replace(/\/$/, '')}${path}`;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), options.timeoutMs || 120_000);
+  const { token, timeoutMs, ...fetchOpts } = options;
+  const headers = {
+    ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
+    ...options.headers,
+  };
+  if (token) headers['X-Deep-Skim-Token'] = token;
   try {
     const res = await fetch(url, {
-      ...options,
+      ...fetchOpts,
       signal: controller.signal,
-      headers: {
-        ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
-        ...options.headers,
-      },
+      headers,
     });
     if (!res.ok) {
       const text = await res.text().catch(() => '');
@@ -37,10 +45,18 @@ async function bridgeFetch(baseUrl, path, options = {}) {
   }
 }
 
-export async function checkOcrBridge(baseUrl) {
+/**
+ * @param {string} baseUrl
+ * @param {{ token?: string }} [opts]
+ */
+export async function checkOcrBridge(baseUrl, opts = {}) {
   if (!baseUrl) return { ok: false, reason: 'No OCR bridge URL configured' };
   try {
-    const res = await bridgeFetch(baseUrl, '/health', { method: 'GET', timeoutMs: 4000 });
+    const res = await bridgeFetch(baseUrl, '/health', {
+      method: 'GET',
+      timeoutMs: 4000,
+      token: opts.token || '',
+    });
     const data = await res.json();
     return {
       ok: true,
@@ -64,6 +80,7 @@ export async function ocrPdfViaBridge(baseUrl, arrayBuffer, {
   provider = 'auto',
   filename = 'document.pdf',
   onProgress,
+  token = '',
 } = {}) {
   onProgress?.({ stage: 'ocr', message: `Sending PDF to OCR bridge (${provider})…` });
 
@@ -78,6 +95,7 @@ export async function ocrPdfViaBridge(baseUrl, arrayBuffer, {
     body: form,
     timeoutMs: 30 * 60 * 1000,
     headers: {}, // let browser set multipart boundary
+    token,
   });
 
   const data = await res.json();
@@ -98,6 +116,7 @@ export async function ocrPdfViaBridge(baseUrl, arrayBuffer, {
 export async function ocrPagesViaBridge(baseUrl, pages, {
   provider = 'deepseek-ocr',
   onProgress,
+  token = '',
 } = {}) {
   // pages: [{ pageIndex, blob }]
   const results = [];
@@ -119,6 +138,7 @@ export async function ocrPagesViaBridge(baseUrl, pages, {
       body: form,
       timeoutMs: 10 * 60 * 1000,
       headers: {},
+      token,
     });
     const data = await res.json();
     results.push({

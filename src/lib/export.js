@@ -6,6 +6,11 @@ export function downloadMarkdown(filename, markdown) {
   downloadTextFile(filename, markdown, 'text/markdown;charset=utf-8', '.md');
 }
 
+export function downloadJson(filename, obj) {
+  const name = String(filename).endsWith('.json') ? filename : `${filename}.json`;
+  downloadTextFile(name, JSON.stringify(obj, null, 2), 'application/json;charset=utf-8', '.json');
+}
+
 /**
  * Download plain text (e.g. OCR / native extraction).
  */
@@ -19,7 +24,7 @@ function downloadTextFile(filename, content, mime, defaultExt) {
   const a = document.createElement('a');
   a.href = url;
   let name = sanitizeFilename(filename);
-  if (!/\.(md|txt|markdown)$/i.test(name)) name += defaultExt;
+  if (!/\.(md|txt|markdown|json)$/i.test(name)) name += defaultExt;
   a.download = name;
   document.body.appendChild(a);
   a.click();

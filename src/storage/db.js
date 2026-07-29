@@ -343,16 +343,20 @@ export async function updateDocument(id, patch) {
 }
 
 export async function deleteDocument(id) {
-  const t = await tx(['documents', 'extractions', 'summaries', 'blobs'], 'readwrite');
+  // Cascade: summaries → reviews, projects, extractions, blobs
+  const sums = await listSummaries();
+  const relatedSums = sums.filter((s) => s.documentId === id);
+  for (const s of relatedSums) {
+    await deleteSummary(s.id);
+  }
+  const projects = await listProjects();
+  for (const p of projects.filter((p) => p.documentId === id)) {
+    await deleteProject(p.id);
+  }
+  const t = await tx(['documents', 'extractions', 'blobs'], 'readwrite');
   await reqToPromise(t.objectStore('documents').delete(id));
   await reqToPromise(t.objectStore('extractions').delete(id));
-  // delete related summaries + blobs
-  const sums = await reqToPromise(t.objectStore('summaries').index('documentId').getAll(id));
-  for (const s of sums) {
-    await reqToPromise(t.objectStore('summaries').delete(s.id));
-  }
   await reqToPromise(t.objectStore('blobs').delete(`pdf:${id}`));
-  // best-effort figure cleanup is by prefix scan in clearFigures
   await clearFiguresForDoc(id);
 }
 
@@ -775,8 +779,14 @@ const DEFAULT_SETTINGS = {
   weeklyReminderEnabled: true,
   lastWeeklyPromptAt: null,
   lastSummaryWeekKey: null,
-  /** User acknowledged cloud text egress */
+  /** User acknowledged cloud text egress (settings save + first generate) */
   privacyAckCloud: false,
+  /** First-run checklist dismissed after all steps green */
+  setupChecklistDone: false,
+  /** Optional shared secret for local OCR bridge (X-Deep-Skim-Token) */
+  ocrBridgeToken: '',
+  supportKofi: 'https://ko-fi.com/otterlyfrank',
+  supportGithub: 'https://github.com/otterlyfrank/deep-skim-v1.0',
   /** Default pages per week when creating multi-week projects */
   projectPagesPerWeek: 200,
   /**
@@ -787,6 +797,135 @@ const DEFAULT_SETTINGS = {
   /** Optional freeform note: project, dissertation angle, show focus, etc. */
   researchFocusNote: '',
 };
+
+export const VAULT_SCHEMA_VERSION = 1;
+
+/**
+ * Full library snapshot (settings redacted by default). PDFs as base64 when includePdfs.
+ */
+export async function exportVault({ includeSecrets = false, includePdfs = false } = {}) {
+  const settings = await getSettings();
+  const safe = { ...settings };
+  if (!includeSecrets && safe.llmApiKey) safe.llmApiKey = '[redacted]';
+  if (!includeSecrets && safe.ocrBridgeToken) safe.ocrBridgeToken = '[redacted]';
+
+  const [documents, summaries, projects] = await Promise.all([
+    listDocuments(),
+    listSummaries(),
+    listProjects(),
+  ]);
+  const extractions = [];
+  for (const d of documents) {
+    const e = await getExtraction(d.id);
+    if (e) extractions.push(e);
+  }
+  const reviews = [];
+  for (const s of summaries) {
+    const rs = await listReviews(s.id);
+    reviews.push(...rs);
+  }
+  const pdfs = [];
+  if (includePdfs) {
+    for (const d of documents) {
+      const ab = await getPdfBytes(d.id);
+      if (!ab) continue;
+      const bytes = new Uint8Array(ab);
+      let bin = '';
+      const chunk = 0x8000;
+      for (let i = 0; i < bytes.length; i += chunk) {
+        bin += String.fromCharCode(...bytes.subarray(i, i + chunk));
+      }
+      pdfs.push({
+        documentId: d.id,
+        mime: 'application/pdf',
+        base64: btoa(bin),
+      });
+    }
+  }
+  return {
+    app: 'deep-skim',
+    schemaVersion: VAULT_SCHEMA_VERSION,
+    exportedAt: new Date().toISOString(),
+    settings: safe,
+    documents,
+    extractions,
+    summaries,
+    reviews,
+    projects,
+    pdfs,
+  };
+}
+
+/**
+ * Restore vault. Replaces library content. Keeps API key if export redacted.
+ */
+export async function importVault(payload, { keepApiKey = true } = {}) {
+  if (!payload || typeof payload !== 'object') throw new Error('Invalid vault file');
+  if (payload.app && payload.app !== 'deep-skim') {
+    throw new Error(`Not a Deep-Skim vault (app: ${payload.app})`);
+  }
+  const current = await getSettings();
+  if (payload.settings && typeof payload.settings === 'object') {
+    const next = { ...payload.settings };
+    if (!next.llmApiKey || next.llmApiKey === '[redacted]') {
+      next.llmApiKey = keepApiKey ? current.llmApiKey || '' : '';
+    }
+    if (!next.ocrBridgeToken || next.ocrBridgeToken === '[redacted]') {
+      next.ocrBridgeToken = keepApiKey ? current.ocrBridgeToken || '' : '';
+    }
+    await setSettings(next);
+  }
+
+  // Clear library stores (keep settings already written)
+  for (const name of ['documents', 'extractions', 'summaries', 'reviews', 'projects', 'blobs']) {
+    try {
+      const t = await tx([name], 'readwrite');
+      await reqToPromise(t.objectStore(name).clear());
+    } catch (e) {
+      console.warn('clear', name, e);
+    }
+  }
+
+  let n = { documents: 0, extractions: 0, summaries: 0, reviews: 0, projects: 0, pdfs: 0 };
+  for (const d of payload.documents || []) {
+    if (!d?.id) continue;
+    await putDocument(d);
+    n.documents++;
+  }
+  for (const e of payload.extractions || []) {
+    if (!e?.documentId) continue;
+    await putExtraction(e);
+    n.extractions++;
+  }
+  for (const s of payload.summaries || []) {
+    if (!s?.id) continue;
+    await putSummary(s);
+    n.summaries++;
+  }
+  for (const r of payload.reviews || []) {
+    if (!r) continue;
+    await putReview(r);
+    n.reviews++;
+  }
+  for (const p of payload.projects || []) {
+    if (!p?.id) continue;
+    await putProject(p);
+    n.projects++;
+  }
+  for (const pdf of payload.pdfs || []) {
+    if (!pdf?.documentId || !pdf.base64) continue;
+    try {
+      const bin = atob(pdf.base64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      await putPdfBytes(pdf.documentId, bytes.buffer, pdf.mime || 'application/pdf');
+      n.pdfs++;
+    } catch (e) {
+      console.warn('pdf restore', e);
+    }
+  }
+  return n;
+}
 
 export async function getSettings() {
   const t = await tx(['settings']);

@@ -91,4 +91,6 @@ export const icons = {
   download: `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3v10.2l3.6-3.6L17 11l-5 5-5-5 1.4-1.4L11 13.2V3h1zM5 18h14v2H5v-2z"/></svg>`,
   star: `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2.5 14.9 9l6.6.5-5 4.3 1.6 6.4L12 16.8 5.9 20.2 7.5 13.8l-5-4.3L9.1 9 12 2.5z"/></svg>`,
   readingList: `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6 3h11a2 2 0 0 1 2 2v15l-3.5-2L12 20l-3.5-2L5 20V5a2 2 0 0 1 1-2zm1 3v10.2l2.5-1.4L12 16l2.5-1.2 2.5 1.4V6H7zm1 1h8v2H8V7zm0 3h8v2H8v-2z"/></svg>`,
+  projects: `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 4h16v3H4V4zm0 5h10v3H4V9zm0 5h16v3H4v-3zm0 5h10v3H4v-3z"/></svg>`,
+  more: `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6 10a2 2 0 1 1 0 4 2 2 0 0 1 0-4zm6 0a2 2 0 1 1 0 4 2 2 0 0 1 0-4zm6 0a2 2 0 1 1 0 4 2 2 0 0 1 0-4z"/></svg>`,
 };

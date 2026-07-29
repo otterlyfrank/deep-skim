@@ -8,17 +8,17 @@
 import { depthBriefMarkdown, estimateDepth } from './depth.js';
 
 /**
- * Default research lenses (ship default = independent research stack).
+ * Default research lenses — generalist researcher pack.
  * Users replace/extend these anytime in Settings; stored in IndexedDB.
+ * (Older niche defaults are not forced on existing vaults.)
  */
 export const DEFAULT_RESEARCH_LENSES_TEXT = [
-  'process philosophy',
-  'schizoanalysis',
-  'political ontology',
-  'immanence / transcendence',
-  'assemblage / multiplicity',
-  'critique of representational capture',
-  'praxis / institutions',
+  'core argument vs evidence',
+  'historical / social context',
+  'method & epistemology',
+  'comparisons to adjacent fields',
+  'practical implications',
+  'open questions & critiques',
 ].join('\n');
 
 /**

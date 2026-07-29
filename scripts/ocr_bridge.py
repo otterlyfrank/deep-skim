@@ -299,16 +299,42 @@ def parse_multipart(body: bytes, content_type: str) -> dict:
     return fields
 
 
+# Origins allowed to call the bridge from a browser (local Deep-Skim only).
+ALLOWED_ORIGINS = frozenset(
+    {
+        "http://127.0.0.1:8080",
+        "http://localhost:8080",
+        "http://127.0.0.1:8780",
+        "http://localhost:8780",
+        "null",  # some local file/test contexts
+    }
+)
+
+
 class Handler(BaseHTTPRequestHandler):
-    server_version = "DeepSkimOCRBridge/1.0"
+    server_version = "DeepSkimOCRBridge/1.1"
 
     def log_message(self, fmt, *args):
         sys.stderr.write("%s - %s\n" % (self.address_string(), fmt % args))
 
     def _cors(self):
-        self.send_header("Access-Control-Allow-Origin", "*")
+        origin = self.headers.get("Origin") or ""
+        if origin in ALLOWED_ORIGINS or (origin.startswith("http://127.0.0.1:") or origin.startswith("http://localhost:")):
+            self.send_header("Access-Control-Allow-Origin", origin)
+            self.send_header("Vary", "Origin")
+        # No wildcard — random websites cannot use this bridge via CORS
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header(
+            "Access-Control-Allow-Headers",
+            "Content-Type, X-Deep-Skim-Token",
+        )
+
+    def _check_token(self) -> bool:
+        expected = os.environ.get("DEEP_SKIM_OCR_TOKEN", "").strip()
+        if not expected:
+            return True  # open only when no token configured
+        got = (self.headers.get("X-Deep-Skim-Token") or "").strip()
+        return got == expected
 
     def _json(self, code: int, obj: dict):
         raw = json.dumps(obj).encode("utf-8")
@@ -325,6 +351,9 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
+        if not self._check_token():
+            self._json(401, {"error": "unauthorized — set X-Deep-Skim-Token or DEEP_SKIM_OCR_TOKEN"})
+            return
         path = urlparse(self.path).path
         if path == "/health":
             providers = detect_providers()
@@ -335,12 +364,16 @@ class Handler(BaseHTTPRequestHandler):
                     "message": "OCR bridge online",
                     "providers": providers,
                     "models": providers,
+                    "auth": bool(os.environ.get("DEEP_SKIM_OCR_TOKEN", "").strip()),
                 },
             )
             return
         self._json(404, {"error": "not found"})
 
     def do_POST(self):
+        if not self._check_token():
+            self._json(401, {"error": "unauthorized — set X-Deep-Skim-Token or DEEP_SKIM_OCR_TOKEN"})
+            return
         path = urlparse(self.path).path
         length = int(self.headers.get("Content-Length", "0"))
         body = self.rfile.read(length) if length else b""

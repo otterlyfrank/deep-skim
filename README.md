@@ -1,6 +1,8 @@
 # Deep-Skim
 
-**v1.12** · See [PATCHNOTES.md](PATCHNOTES.md) for release history.
+**v1.13** · See [PATCHNOTES.md](PATCHNOTES.md) for release history.
+
+**Public repo:** [github.com/otterlyfrank/deep-skim-v1.0](https://github.com/otterlyfrank/deep-skim-v1.0) · Support: [Ko-fi](https://ko-fi.com/otterlyfrank)
 
 A **local-first** browser app for one high-quality structured deep-skim per week.
 
@@ -73,18 +75,27 @@ Settings → **Use Ollama**.
 
 ### OCR (scans / hard PDFs)
 
-See **[docs/ocr-setup.md](docs/ocr-setup.md)** for Unlimited-OCR and DeepSeek-OCR.
+**Default (recommended):** free Gemini vision uses your API key — no local install. Settings → OCR path → Auto.
+
+**Optional local bridge** for advanced offline models — see **[docs/ocr-setup.md](docs/ocr-setup.md)**:
 
 ```bash
 pip install -r scripts/requirements-ocr.txt
 python scripts/ocr_bridge.py --port 8765
+# optional: DEEP_SKIM_OCR_TOKEN=secret python scripts/ocr_bridge.py
 ```
 
-Default OCR bridge URL in Settings: `http://localhost:8765`.
+Default OCR bridge URL: `http://127.0.0.1:8765` (localhost-only CORS).
+
+### Privacy in one line
+
+- **PDF files** stay in this browser’s IndexedDB. There is no Deep-Skim server.
+- **Cloud LLM / cloud OCR** send **extracted text** (and page images for vision OCR) to the provider you configure.
+- Prefer **Ollama** in Settings for fully offline generation.
 
 ## What you get per deep-skim
 
-The model is forced into a fixed structure (see [`SYSTEM_PROMPT.md`](SYSTEM_PROMPT.md)):
+The model is forced into a fixed structure (see [`SYSTEM_PROMPT.md`](SYSTEM_PROMPT.md) / `src/generation/prompt.js`):
 
 1. Title + Bibliographic Note  
 2. Hierarchical Outline + **Core Claims** (not topic lists)  
@@ -94,8 +105,9 @@ The model is forced into a fixed structure (see [`SYSTEM_PROMPT.md`](SYSTEM_PROM
 6. Connections to Existing Knowledge (personalization hooks)  
 7. Dual-Pressure Stress Test  
 8. What Remains Unclear / Worth Full Reading  
+9. Core Reading Segments / Long-reads (when multipass attaches extracts)  
 
-Edit the prompt in `SYSTEM_PROMPT.md` and keep `src/generation/prompt.js` in sync when iterating.
+Edit the prompt in `src/generation/prompt.js` (runtime source of truth).
 
 ## Features
 
@@ -150,12 +162,13 @@ Pin the tab, or set your browser’s new-tab extension to `http://localhost:8080
 ## GitHub
 
 ```bash
-cd ~/deep-skim
-# after first push, clone with:
-# git clone https://github.com/<you>/deep-skim.git
+git clone https://github.com/otterlyfrank/deep-skim-v1.0.git
+cd deep-skim-v1.0
+./start.sh
+# tests: npm test
 ```
 
-Local data (IndexedDB) is **never** in the git repo — only the app code.
+Local data (IndexedDB) is **never** in the git repo — only the app code. Export a vault from Settings anytime.
 
 ## License
 

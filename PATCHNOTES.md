@@ -1,5 +1,35 @@
 # Deep-Skim patch notes
 
+## v1.13 — Audit polish (P0–P2)
+
+**Theme:** Complete the Reading List climax, honest privacy, vault backup, mobile shell, and offline extract.
+
+### Added
+- **Open original PDF** from document detail, summary, and Reading List cards (blob from IndexedDB)
+- **Vault backup** export/import in Settings (optional PDFs + redacted secrets by default)
+- **First-run checklist** until LLM + privacy + PDF + ready extract are green
+- **⌘K command palette** and mobile bottom nav
+- Unit tests: `npm test` (quality, multipass chunk, parser, lenses)
+- Vendored **pdf.js** under `public/pdfjs/` for offline/PWA extract
+- Support links (Ko-fi + GitHub)
+
+### Changed
+- Privacy copy distinguishes “PDF stays local” vs “cloud LLM/OCR sends text/images”
+- Cloud privacy ack on first generate (not only settings save)
+- Research lens ship defaults → generalist pack
+- IA: primary nav Library / Summaries / Review / Settings; shelves under More
+- Decision bar after sections (“Done reading?”)
+- OCR bridge: localhost CORS only + optional `DEEP_SKIM_OCR_TOKEN` / Settings token
+- Cascade-delete document → summaries, reviews, projects
+- System fonts first; CSS token fix for shelf chips; unique Projects icon
+- Cloud OCR sample note when N of M pages OCR’d
+
+### Security
+- API key no longer baked into HTML attributes (set via JS after paint)
+- OCR bridge no longer uses `Access-Control-Allow-Origin: *`
+
+---
+
 ## v1.12 — Install as app (PWA)
 
 **Theme:** One-click install into Applications / Start menu / Dock / taskbar without a native binary.

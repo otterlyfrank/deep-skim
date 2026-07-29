@@ -31,6 +31,9 @@ import {
   resetLocalDatabase,
   healDocumentQueue,
   clearDocumentError,
+  getPdfBytes,
+  exportVault,
+  importVault,
 } from './storage/db.js';
 import {
   ingestFile,
@@ -59,6 +62,7 @@ import { checkOcrBridge } from './extraction/ocr-bridge.js';
 import {
   downloadMarkdown,
   downloadText,
+  downloadJson,
   exportPdfViaPrint,
   buildExportMarkdown,
   formatBytes,
@@ -107,6 +111,10 @@ export async function boot() {
     window.addEventListener('popstate', onHashChange);
     window.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') closeMobileNav();
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        openCommandPalette();
+      }
     });
     let { view, params } = parseHash();
     // Don't land on a missing project view after a failed upgrade
@@ -217,9 +225,14 @@ function renderShell() {
   $('#btn-menu').addEventListener('click', () => {
     const open = $('#sidebar').classList.toggle('open');
     const bd = $('#sidebar-backdrop');
+    const menu = $('#btn-menu');
     if (bd) {
       bd.hidden = !open;
       bd.classList.toggle('show', open);
+    }
+    if (menu) {
+      menu.setAttribute('aria-expanded', open ? 'true' : 'false');
+      menu.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
     }
   });
   $('#sidebar-backdrop').addEventListener('click', closeMobileNav);
@@ -234,12 +247,100 @@ function closeMobileNav() {
     bd.hidden = true;
     bd.classList.remove('show');
   }
+  const menu = $('#btn-menu');
+  if (menu) {
+    menu.setAttribute('aria-expanded', 'false');
+    menu.setAttribute('aria-label', 'Open menu');
+  }
 }
 
 function setActiveNav(view) {
+  const moreViews = ['reading-list', 'starred', 'projects', 'search', 'settings'];
   document.querySelectorAll('[data-nav]').forEach((btn) => {
-    btn.classList.toggle('active', btn.dataset.nav === view);
+    const nav = btn.dataset.nav;
+    let active = nav === view;
+    // Mobile "More" highlights for secondary destinations
+    if (btn.classList.contains('mobile-nav-btn') && nav === 'settings') {
+      active = moreViews.includes(view);
+    }
+    btn.classList.toggle('active', active);
+    if (active) btn.setAttribute('aria-current', 'page');
+    else btn.removeAttribute('aria-current');
   });
+  const more = $('#nav-more');
+  if (more && ['reading-list', 'starred', 'projects', 'search'].includes(view)) {
+    more.open = true;
+  }
+}
+
+/** Open stored PDF in a new tab (blob URL). */
+async function openOriginalPdf(documentId) {
+  try {
+    const bytes = await getPdfBytes(documentId);
+    if (!bytes) {
+      toast('PDF not found in local vault', true);
+      return;
+    }
+    const blob = new Blob([bytes], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank', 'noopener');
+    setTimeout(() => URL.revokeObjectURL(url), 120_000);
+  } catch (err) {
+    toast(err.message || 'Could not open PDF', true);
+  }
+}
+
+function ensureCloudPrivacyAck(settings) {
+  const p = getProvider(settings.llmProvider || inferProviderId(settings.llmBaseUrl));
+  if (!p?.leavesMachine) return true;
+  if (settings.privacyAckCloud) return true;
+  const ok = confirm(
+    'Cloud path: extracted text (and page images if cloud OCR) will be sent to your configured provider. PDFs stay in this browser.\n\nContinue and remember this choice?'
+  );
+  return ok;
+}
+
+async function markCloudPrivacyAck() {
+  settingsCache = await setSettings({ privacyAckCloud: true });
+}
+
+function setupChecklistHtml(settings, docs, llmOk) {
+  if (settings.setupChecklistDone) return '';
+  const p = getProvider(settings.llmProvider || inferProviderId(settings.llmBaseUrl));
+  const needsKey = p?.needsKey;
+  const keyOk = !needsKey || !!(settings.llmApiKey || '').trim();
+  const privacyOk = !p?.leavesMachine || !!settings.privacyAckCloud;
+  const hasPdf = docs.length > 0;
+  const ready = docs.some((d) => d.status === 'ready' || d.status === 'summarized');
+  const steps = [
+    { ok: keyOk && (llmOk || !needsKey), label: 'LLM ready (Settings → key + Test)', action: 'settings' },
+    { ok: privacyOk, label: 'Cloud privacy acknowledged (if using Gemini/etc.)', action: 'settings' },
+    { ok: hasPdf, label: 'At least one PDF in Library', action: 'add' },
+    { ok: ready, label: 'Extraction ready (status → ready)', action: 'library' },
+  ];
+  if (steps.every((s) => s.ok)) {
+    setSettings({ setupChecklistDone: true }).then((s) => {
+      settingsCache = s;
+    });
+    return '';
+  }
+  return `
+    <div class="setup-checklist" id="setup-checklist">
+      <h3>First successful deep-skim</h3>
+      <ol>
+        ${steps
+          .map(
+            (s) =>
+              `<li class="${s.ok ? 'done' : ''}">${s.ok ? '✓ ' : ''}${escapeHtml(s.label)}</li>`
+          )
+          .join('')}
+      </ol>
+      <div class="checklist-actions">
+        <button type="button" class="primary" id="checklist-settings">Open Settings</button>
+        <button type="button" id="checklist-add">Add PDFs</button>
+        <button type="button" class="ghost" id="checklist-dismiss">Dismiss</button>
+      </div>
+    </div>`;
 }
 
 function setViewChrome(title, subtitle = '') {
@@ -297,7 +398,7 @@ async function probeServices() {
   const ocrDot = $('#dot-ocr');
   try {
     settingsCache = await getSettings();
-    const llm = await checkLlm(settingsCache.llmBaseUrl, settingsCache.llmApiKey);
+    const llm = await checkLlm(settingsCache.llmBaseUrl, settingsCache.llmApiKey || '');
     if (llmDot) {
       llmDot.className = 'dot ' + (llm.ok ? 'ok' : 'err');
       llmDot.title = llm.ok
@@ -326,7 +427,9 @@ async function probeServices() {
       settingsCache.ocrProvider === 'deepseek-ocr' ||
       settingsCache.ocrProvider === 'auto'
     ) {
-      const ocr = await checkOcrBridge(settingsCache.ocrBridgeUrl);
+      const ocr = await checkOcrBridge(settingsCache.ocrBridgeUrl, {
+        token: settingsCache.ocrBridgeToken || '',
+      });
       localOk = ocr.ok;
       localMsg = ocr.ok ? ocr.message : ocr.reason;
     }
@@ -464,13 +567,17 @@ async function renderLibrary(root, actions) {
   const ready = docs.filter((d) => d.status === 'ready' || d.status === 'summarized').length;
   const asap = docs.filter((d) => d.priority === 'asap').length;
 
+  const llmDotOk = $('#dot-llm')?.classList.contains('ok');
+  const checklist = setupChecklistHtml(settingsCache, docs, !!llmDotOk);
+
   if (!docs.length) {
     root.innerHTML = `
       <div class="content-wide">
         ${welcomeHtml()}
+        ${checklist}
         <div class="drop-zone drop-zone-compact" id="drop-zone">
           <strong>${icons.pdf} Drop PDFs anywhere in this zone</strong>
-          <div class="hint">Files stay in IndexedDB on this device. Nothing is uploaded to a server.</div>
+          <div class="hint">PDF files stay in this browser’s IndexedDB. There is no Deep-Skim server. Cloud LLM/OCR (if you enable them) send extracted text or page images to that provider — see Settings.</div>
         </div>
       </div>`;
     $('#welcome-add').onclick = () => $('#btn-add-pdfs').click();
@@ -485,11 +592,12 @@ async function renderLibrary(root, actions) {
           sums: sums.length,
           due: due.length,
         })}
+        ${checklist}
         <div id="weekly-slot"></div>
         <div class="drop-zone" id="drop-zone">
           <strong>${icons.upload} Drop PDFs here</strong>
           <span>or use Add PDFs / Add folder (works in Safari, Chrome, Firefox). Folders named like “To Be Read ASAP” get priority.</span>
-          <div class="hint">All data stays local in this browser.</div>
+          <div class="hint">PDFs stay local. Cloud generate/OCR (optional) send text/images to your chosen API — Settings privacy.</div>
           <div class="drop-actions">
             <button type="button" class="primary" id="btn-drop-add">Choose files</button>
           </div>
@@ -510,6 +618,13 @@ async function renderLibrary(root, actions) {
     `;
     await paintWeeklyBanner($('#weekly-slot'));
   }
+
+  $('#checklist-settings')?.addEventListener('click', () => navigate('settings'));
+  $('#checklist-add')?.addEventListener('click', () => $('#btn-add-pdfs')?.click());
+  $('#checklist-dismiss')?.addEventListener('click', async () => {
+    settingsCache = await setSettings({ setupChecklistDone: true });
+    navigate('library');
+  });
 
   const list = $('#doc-list');
   if (list) {
@@ -714,12 +829,17 @@ async function renderDocument(root, actions, docId) {
 
   actions.innerHTML = `
     <button type="button" class="ghost" id="btn-back-lib">← Library</button>
+    <button type="button" id="btn-open-pdf" title="Open original PDF">${icons.pdf || ''} Open PDF</button>
     <button type="button" id="btn-rename-doc">Rename</button>
     <button type="button" id="btn-reextract">Re-extract</button>
     <button type="button" id="btn-force-ocr">Force OCR</button>
     <button type="button" id="btn-dl-extract" ${ext?.text ? '' : 'disabled'} title="Download extracted / OCR text">${icons.download || ''} Extract</button>
     <button type="button" class="primary" id="btn-generate" ${doc.status !== 'ready' && doc.status !== 'summarized' ? 'disabled' : ''}>Generate deep-skim</button>
   `;
+
+  const ocrNote = ext?.stats?.ocrSampleNote
+    ? `<p class="help" style="margin:0.5rem 0 0;color:var(--warn)">${escapeHtml(ext.stats.ocrSampleNote)}</p>`
+    : '';
 
   root.innerHTML = `
     <div class="content-narrow">
@@ -735,6 +855,7 @@ async function renderDocument(root, actions, docId) {
             ${ext ? `<span>extract: ${escapeHtml(ext.method)} · ${escapeHtml(ext.quality)}</span>` : '<span>no extraction yet</span>'}
             ${doc.sourcePath ? `<span>${escapeHtml(doc.sourcePath)}</span>` : ''}
           </div>
+          ${ocrNote}
         </div>
       </div>
 
@@ -811,6 +932,7 @@ async function renderDocument(root, actions, docId) {
   };
 
   $('#btn-back-lib').onclick = () => navigate('library');
+  $('#btn-open-pdf')?.addEventListener('click', () => openOriginalPdf(docId));
   $('#btn-dl-extract')?.addEventListener('click', () => downloadExtraction(false));
   $('#btn-dl-extract-txt')?.addEventListener('click', () => downloadExtraction(false));
   $('#btn-dl-extract-md')?.addEventListener('click', () => downloadExtraction(true));
@@ -869,6 +991,14 @@ async function runGenerate(docId, opts = {}) {
 
   // Soft gate: one ISO-week skim (skip for multi-week project installments? keep — user can confirm)
   settingsCache = await getSettings();
+
+  // Cloud privacy ack before first generate (not only settings save)
+  if (!ensureCloudPrivacyAck(settingsCache)) return;
+  if (!settingsCache.privacyAckCloud) {
+    const p = getProvider(settingsCache.llmProvider || inferProviderId(settingsCache.llmBaseUrl));
+    if (p?.leavesMachine) await markCloudPrivacyAck();
+  }
+
   const wk = weekKey();
   if (!opts.skipWeeklyGate && settingsCache.lastSummaryWeekKey === wk) {
     const ok = confirm(
@@ -1396,6 +1526,7 @@ async function renderSummaries(root, actions, mode = 'all') {
         </div>
       </div>
       <div class="actions">
+        ${s.documentId ? `<button type="button" data-open-pdf="${s.documentId}" title="Open original PDF">${icons.pdf || ''} PDF</button>` : ''}
         <button type="button" data-quiz="${s.id}">Quiz</button>
       </div>
     </article>`
@@ -1419,6 +1550,12 @@ async function renderSummaries(root, actions, mode = 'all') {
       navigate('quiz', { summaryId: btn.dataset.quiz });
     });
   });
+  root.querySelectorAll('[data-open-pdf]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openOriginalPdf(btn.dataset.openPdf);
+    });
+  });
 }
 
 // ── Summary reader ─────────────────────────────────────────
@@ -1434,6 +1571,7 @@ async function renderSummary(root, actions, summaryId) {
 
   actions.innerHTML = `
     <button type="button" class="ghost" id="btn-back-sums">← Summaries</button>
+    ${doc ? `<button type="button" id="btn-open-src-pdf" title="Open original PDF">${icons.pdf || ''} Open PDF</button>` : ''}
     <button type="button" id="btn-expand-all">Expand all</button>
     <button type="button" id="btn-collapse-all">Collapse</button>
     <button type="button" id="btn-quiz">Active recall</button>
@@ -1458,18 +1596,6 @@ async function renderSummary(root, actions, summaryId) {
           <span>${escapeHtml(s.model || '')}</span>
           ${(s.tags || []).filter((t) => t !== 'full-reading').map((t) => `<span class="pill">${escapeHtml(t)}</span>`).join('')}
         </div>
-        <p class="decision-prompt">Is it worth reading? Star the skim to keep notes handy — promote when the <em>book</em> deserves full attention.</p>
-        <div class="topbar-actions decision-actions" style="margin-top:0.65rem">
-          <button type="button" id="btn-rename-sum">Rename skim</button>
-          <button type="button" class="${s.starred ? 'primary' : ''}" id="btn-toggle-star" title="Keep this deep-skim handy">
-            ${s.starred ? '★ Starred' : '☆ Star'}
-          </button>
-          <button type="button" class="${s.status === 'promote' ? 'primary' : ''}" id="btn-toggle-reading" title="Epic full-reading queue">
-            ${s.status === 'promote' ? 'On Reading List' : 'Promote to Reading List'}
-          </button>
-          <button type="button" id="btn-toggle-archive">${s.status === 'archive' ? 'Unarchive' : 'Archive'}</button>
-          ${s.status === 'promote' ? `<button type="button" class="ghost" id="btn-open-reading-list">Open Reading List →</button>` : ''}
-        </div>
       </header>
       <div class="section-stack">
         ${sections
@@ -1482,6 +1608,22 @@ async function renderSummary(root, actions, summaryId) {
           )
           .join('')}
       </div>
+
+      <section class="decision-footer" aria-label="Worth reading decision">
+        <p class="decision-prompt" style="margin-top:0">Done reading? Star the skim to keep notes handy — promote when the <em>book</em> deserves a full sit-down (then open the PDF).</p>
+        <div class="topbar-actions decision-actions" style="margin-top:0.65rem">
+          <button type="button" id="btn-rename-sum">Rename skim</button>
+          <button type="button" class="${s.starred ? 'primary' : ''}" id="btn-toggle-star" title="Keep this deep-skim handy">
+            ${s.starred ? '★ Starred' : '☆ Star'}
+          </button>
+          <button type="button" class="${s.status === 'promote' ? 'primary' : ''}" id="btn-toggle-reading" title="Epic full-reading queue">
+            ${s.status === 'promote' ? 'On Reading List' : 'Promote to Reading List'}
+          </button>
+          <button type="button" id="btn-toggle-archive">${s.status === 'archive' ? 'Unarchive' : 'Archive'}</button>
+          ${doc ? `<button type="button" class="primary" id="btn-open-src-pdf-2">${icons.pdf || ''} Open original PDF</button>` : ''}
+          ${s.status === 'promote' ? `<button type="button" class="ghost" id="btn-open-reading-list">Open Reading List →</button>` : ''}
+        </div>
+      </section>
 
       <section class="notes-panel" aria-label="Personal reflections">
         <div class="section-head" style="margin-top:1.75rem">
@@ -1500,6 +1642,9 @@ async function renderSummary(root, actions, summaryId) {
   const getNotes = () => ($('#sum-notes')?.value || '').trim();
 
   $('#btn-back-sums').onclick = () => navigate('summaries');
+  const openSrc = () => doc?.id && openOriginalPdf(doc.id);
+  $('#btn-open-src-pdf')?.addEventListener('click', openSrc);
+  $('#btn-open-src-pdf-2')?.addEventListener('click', openSrc);
   $('#btn-expand-all').onclick = () => {
     root.querySelectorAll('details.section').forEach((d) => {
       d.open = true;
@@ -1635,7 +1780,8 @@ async function renderQuiz(root, actions, summaryId) {
                  <button type="button" data-grade="easy">Easy</button>
                </div>`
             : `<button type="button" class="primary" id="btn-reveal">Reveal answer</button>
-               <p style="color:var(--text-faint);font-size:0.85rem;margin-top:1rem">Self-grade honestly after revealing. Spaced review uses your grades.</p>`
+               <p style="color:var(--text-faint);font-size:0.85rem;margin-top:1rem">Self-grade honestly after revealing. Spaced review uses your grades.</p>
+               <p class="help" style="margin-top:0.75rem">Grades: <strong>Again</strong> = soon · <strong>Hard</strong> = shorter · <strong>Good</strong> = normal · <strong>Easy</strong> = longer interval</p>`
         }
       </div>
     `;
@@ -1890,7 +2036,7 @@ async function renderSettings(root, actions) {
           <div class="field">
             <label for="llmApiKey">API key</label>
             <div class="key-row">
-              <input type="password" id="llmApiKey" value="${escapeAttr(settingsCache.llmApiKey || '')}" autocomplete="off" placeholder="${escapeAttr(getProvider(providerId).keyPlaceholder)}" />
+              <input type="password" id="llmApiKey" value="" autocomplete="off" data-has-key="${settingsCache.llmApiKey ? '1' : '0'}" placeholder="${escapeAttr(getProvider(providerId).keyPlaceholder)}" />
               <button type="button" class="ghost" id="btn-toggle-key" title="Show / hide key">Show</button>
             </div>
             <div class="help" id="key-help">
@@ -1973,11 +2119,37 @@ async function renderSettings(root, actions) {
           <div class="field">
             <label for="ocrBridgeUrl">Local OCR bridge URL (optional)</label>
             <input type="url" id="ocrBridgeUrl" value="${escapeAttr(settingsCache.ocrBridgeUrl)}" />
-            <div class="help">Only if you run scripts/ocr_bridge.py — not required for Gemini.</div>
+            <div class="help">Only if you run scripts/ocr_bridge.py — not required for Gemini. Bridge CORS is localhost-only; optional token via env DEEP_SKIM_OCR_TOKEN.</div>
+          </div>
+          <div class="field">
+            <label for="ocrBridgeToken">OCR bridge token (optional)</label>
+            <input type="password" id="ocrBridgeToken" value="" autocomplete="off" data-has-token="${settingsCache.ocrBridgeToken ? '1' : '0'}" placeholder="Matches DEEP_SKIM_OCR_TOKEN" />
           </div>
           <div class="field">
             <button type="button" id="btn-test-ocr">Test OCR readiness</button>
           </div>
+        </fieldset>
+
+        <fieldset class="settings-block" id="vault-backup">
+          <legend>Vault backup</legend>
+          <p class="help" style="margin-top:0">
+            Full local snapshot of library metadata, extractions, skims, reviews, projects, and settings.
+            API keys redacted unless checked. PDFs optional (large files).
+          </p>
+          <div class="field row-actions">
+            <button type="button" class="primary" id="vault-export">Export vault…</button>
+            <button type="button" id="vault-import">Import vault…</button>
+          </div>
+          <label class="field check-label" style="margin-top:0.5rem">
+            <input type="checkbox" id="vault-include-secrets" />
+            Include API key in export (keep the file private)
+          </label>
+          <label class="field check-label">
+            <input type="checkbox" id="vault-include-pdfs" />
+            Include PDF binaries (can be huge)
+          </label>
+          <input type="file" id="vault-file" accept="application/json,.json" hidden />
+          <p class="help" id="vault-status" style="margin-top:0.5rem"></p>
         </fieldset>
 
         <fieldset class="settings-block">
@@ -2032,8 +2204,17 @@ async function renderSettings(root, actions) {
           </div>
         </fieldset>
 
-        <div id="settings-status" class="status-line">Free path: Use free Gemini → paste AI Studio key → Save → Test connection.</div>
+        <div id="settings-status" class="status-line">Free path: Use free Gemini → paste AI Studio key → Save → Test connection. ⌘K opens command palette.</div>
       </form>
+
+      <div class="support-card" style="margin:1.5rem 0">
+        <h3 style="font-family:var(--font-serif);margin:0 0 0.4rem">Support Deep-Skim</h3>
+        <p class="help" style="margin:0 0 0.65rem">Free &amp; open source (MIT). If it helps your research practice, consider supporting development.</p>
+        <div class="topbar-actions">
+          <a class="btn primary" href="${escapeAttr(settingsCache.supportKofi || 'https://ko-fi.com/otterlyfrank')}" target="_blank" rel="noopener">Ko-fi</a>
+          <a class="btn" href="${escapeAttr(settingsCache.supportGithub || 'https://github.com/otterlyfrank/deep-skim-v1.0')}" target="_blank" rel="noopener">GitHub / issues</a>
+        </div>
+      </div>
 
       ${installUiHtml('full')}
 
@@ -2145,6 +2326,60 @@ async function renderSettings(root, actions) {
   rebuildModelSelect(providerId, settingsCache.llmModel, []);
   syncModelCustomVisibility();
 
+  // API key not embedded in HTML attributes — set via JS after paint
+  const keyInput = $('#llmApiKey');
+  if (keyInput && settingsCache.llmApiKey) {
+    keyInput.value = settingsCache.llmApiKey;
+    keyInput.placeholder = 'Key saved · leave blank to keep';
+  }
+  const tokInput = $('#ocrBridgeToken');
+  if (tokInput && settingsCache.ocrBridgeToken) {
+    tokInput.value = settingsCache.ocrBridgeToken;
+  }
+
+  // Vault backup
+  $('#vault-export')?.addEventListener('click', async () => {
+    try {
+      const includeSecrets = !!$('#vault-include-secrets')?.checked;
+      const includePdfs = !!$('#vault-include-pdfs')?.checked;
+      const vault = await exportVault({ includeSecrets, includePdfs });
+      const stamp = new Date().toISOString().slice(0, 10);
+      downloadJson(`deep-skim-vault-${stamp}`, vault);
+      const st = $('#vault-status');
+      if (st) {
+        st.textContent = `Exported ${vault.documents?.length || 0} docs · ${vault.summaries?.length || 0} skims${
+          includePdfs ? ` · ${vault.pdfs?.length || 0} PDFs` : ''
+        }${includeSecrets ? ' · includes secrets' : ' · keys redacted'}`;
+      }
+      toast('Vault exported');
+    } catch (err) {
+      toast(err.message || String(err), true);
+    }
+  });
+  $('#vault-import')?.addEventListener('click', () => $('#vault-file')?.click());
+  $('#vault-file')?.addEventListener('change', async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!confirm('Import replaces documents, skims, projects, and reviews in this browser. Continue?')) {
+      return;
+    }
+    try {
+      const payload = JSON.parse(await file.text());
+      const r = await importVault(payload, { keepApiKey: true });
+      settingsCache = await getSettings();
+      applyTheme(settingsCache.theme || 'dark');
+      const st = $('#vault-status');
+      if (st) {
+        st.textContent = `Restored ${r.documents} docs · ${r.summaries} skims · ${r.pdfs} PDFs`;
+      }
+      toast(`Vault restored · ${r.summaries} skims`);
+      navigate('library');
+    } catch (err) {
+      toast(err.message || 'Invalid vault file', true);
+    }
+  });
+
   $('#llmProvider').addEventListener('change', () => {
     applyProviderFields($('#llmProvider').value, { fillDefaults: true });
   });
@@ -2209,7 +2444,9 @@ async function renderSettings(root, actions) {
       status.className = 'status-line err';
       return;
     }
-    if (p.leavesMachine && p.needsKey && !$('#llmApiKey').value.trim()) {
+    const keyTyped = $('#llmApiKey').value.trim();
+    const nextKey = keyTyped || settingsCache.llmApiKey || '';
+    if (p.leavesMachine && p.needsKey && !nextKey) {
       status.textContent = 'Save blocked: paste an API key for this cloud provider.';
       status.className = 'status-line err';
       return;
@@ -2224,16 +2461,19 @@ async function renderSettings(root, actions) {
       lensesText = DEFAULT_RESEARCH_LENSES_TEXT;
       if ($('#researchLensesText')) $('#researchLensesText').value = lensesText;
     }
+    const tokTyped = ($('#ocrBridgeToken')?.value || '').trim();
+    const nextTok = tokTyped || settingsCache.ocrBridgeToken || '';
     settingsCache = await setSettings({
       llmProvider: provider,
       llmBaseUrl: $('#llmBaseUrl').value.trim(),
       llmModel: model,
-      llmApiKey: $('#llmApiKey').value,
+      llmApiKey: nextKey,
       maxContextChars: Number($('#maxContextChars').value) || 120000,
       multipassEnabled: $('#multipassEnabled').checked,
       mapChunkChars: Number($('#mapChunkChars').value) || 55000,
       maxMapChunks: Math.min(16, Math.max(2, Number($('#maxMapChunks').value) || 12)),
       ocrBridgeUrl: $('#ocrBridgeUrl').value.trim(),
+      ocrBridgeToken: nextTok,
       ocrProvider: $('#ocrProvider').value,
       cloudOcrMaxPages: Math.min(200, Math.max(5, Number($('#cloudOcrMaxPages')?.value) || 48)),
       asapFolderHint: $('#asapFolderHint').value.trim(),
@@ -2302,7 +2542,9 @@ async function renderSettings(root, actions) {
     }
 
     if (provider === 'local' || provider === 'auto') {
-      const r = await checkOcrBridge($('#ocrBridgeUrl').value.trim());
+      const r = await checkOcrBridge($('#ocrBridgeUrl').value.trim(), {
+        token: ($('#ocrBridgeToken')?.value || settingsCache.ocrBridgeToken || '').trim(),
+      });
       parts.push(
         r.ok
           ? `Local bridge: online (${(r.providers || []).join(', ') || 'ok'})`
@@ -2370,6 +2612,119 @@ async function paintWeeklyBanner(slot) {
   if (ready) {
     $('#btn-weekly-gen').onclick = () => navigate('document', { docId: ready.id });
   }
+}
+
+// ── Command palette (⌘K / Ctrl+K) ──────────────────────────
+
+function openCommandPalette() {
+  if (document.getElementById('cmd-backdrop')) return;
+  const go = (view, params = {}) => navigate(view, params);
+  const commands = [
+    { id: 'library', label: 'Go to Library', run: () => go('library') },
+    { id: 'summaries', label: 'Go to Summaries', run: () => go('summaries') },
+    { id: 'reading', label: 'Go to Reading List', run: () => go('reading-list') },
+    { id: 'starred', label: 'Go to Starred', run: () => go('starred') },
+    { id: 'review', label: 'Go to Review', run: () => go('review') },
+    { id: 'projects', label: 'Go to Projects', run: () => go('projects') },
+    { id: 'search', label: 'Go to Search', run: () => go('search') },
+    { id: 'settings', label: 'Go to Settings', run: () => go('settings') },
+    {
+      id: 'vault',
+      label: 'Vault backup (Settings)',
+      run: () => {
+        go('settings');
+        requestAnimationFrame(() => {
+          document.getElementById('vault-backup')?.scrollIntoView({ behavior: 'smooth' });
+        });
+      },
+    },
+    {
+      id: 'theme',
+      label: 'Toggle light / dark theme',
+      run: async () => {
+        const next = (settingsCache?.theme || 'dark') === 'dark' ? 'light' : 'dark';
+        settingsCache = await setSettings({ theme: next });
+        applyTheme(next);
+        toast(`Theme: ${next}`);
+      },
+    },
+  ];
+  let filter = '';
+  let active = 0;
+  const backdrop = document.createElement('div');
+  backdrop.id = 'cmd-backdrop';
+  backdrop.className = 'cmd-backdrop';
+  const close = () => backdrop.remove();
+  const filtered = () => {
+    const q = filter.trim().toLowerCase();
+    if (!q) return commands;
+    return commands.filter((c) => c.label.toLowerCase().includes(q) || c.id.includes(q));
+  };
+  const paint = () => {
+    const list = filtered();
+    if (active >= list.length) active = Math.max(0, list.length - 1);
+    backdrop.innerHTML = `
+      <div class="cmd-palette" role="dialog" aria-modal="true" aria-label="Command palette">
+        <input type="search" id="cmd-input" class="cmd-input" placeholder="Jump to… library, vault, review…" value="${escapeAttr(
+          filter
+        )}" autocomplete="off" />
+        <div class="cmd-list">
+          ${
+            list
+              .map(
+                (c, i) =>
+                  `<button type="button" class="cmd-item ${i === active ? 'active' : ''}" data-cmd="${escapeAttr(
+                    c.id
+                  )}">${escapeHtml(c.label)}</button>`
+              )
+              .join('') || `<p class="help" style="padding:0.75rem;text-align:center">No matches</p>`
+          }
+        </div>
+        <p class="cmd-foot">↑↓ · Enter · Esc · ⌘K</p>
+      </div>`;
+    const input = backdrop.querySelector('#cmd-input');
+    input?.focus();
+    input?.select();
+    input?.addEventListener('input', (ev) => {
+      filter = ev.target.value;
+      active = 0;
+      paint();
+    });
+    input?.addEventListener('keydown', (ev) => {
+      const list2 = filtered();
+      if (ev.key === 'ArrowDown') {
+        ev.preventDefault();
+        active = Math.min(list2.length - 1, active + 1);
+        paint();
+      } else if (ev.key === 'ArrowUp') {
+        ev.preventDefault();
+        active = Math.max(0, active - 1);
+        paint();
+      } else if (ev.key === 'Enter') {
+        ev.preventDefault();
+        const cmd = list2[active];
+        if (cmd) {
+          close();
+          cmd.run();
+        }
+      } else if (ev.key === 'Escape') {
+        ev.preventDefault();
+        close();
+      }
+    });
+    backdrop.querySelectorAll('[data-cmd]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const cmd = commands.find((c) => c.id === btn.dataset.cmd);
+        close();
+        cmd?.run();
+      });
+    });
+    backdrop.addEventListener('click', (ev) => {
+      if (ev.target === backdrop) close();
+    });
+  };
+  document.body.appendChild(backdrop);
+  paint();
 }
 
 // ── Toasts / progress ─────────────────────────────────────
