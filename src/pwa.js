@@ -8,6 +8,8 @@ let swRegistered = false;
 
 const PWA_EVENT = 'deepskim-pwa-change';
 
+const INSTALL_ICON = `<svg class="pwa-install-icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M12 3v10.2l3.6-3.6L17 11l-5 5-5-5 1.4-1.4L11 13.2V3h1zm-7 14h14v2H5v-2z"/></svg>`;
+
 export function isStandalone() {
   return (
     window.matchMedia('(display-mode: standalone)').matches ||
@@ -79,39 +81,73 @@ export function installUiHtml(mode = 'compact') {
           One-click install puts Deep-Skim in your Applications folder / Start menu
           and lets you pin it to the Dock or taskbar — no native binary required.
         </p>
-        ${
-          can
-            ? `<button type="button" class="primary" id="pwa-install-btn">Install app</button>`
-            : `<p class="help">Use your browser’s install control when it appears, or:</p>
-               <ul class="pwa-howto">
-                 <li><b>Chrome / Edge (desktop)</b> — menu (⋮) → <i>Install Deep-Skim…</i> / <i>Install page as app</i></li>
-                 <li><b>Safari (Mac)</b> — File → <i>Add to Dock…</i></li>
-                 <li><b>iPhone / iPad</b> — Share → <i>Add to Home Screen</i></li>
-               </ul>
-               <button type="button" class="primary" id="pwa-install-btn" hidden>Install app</button>`
-        }
+        <button type="button" class="primary pwa-install-cta" id="pwa-install-btn">
+          ${INSTALL_ICON}
+          <span>${can ? 'Install app now' : 'How to install'}</span>
+        </button>
+        <div class="pwa-howto-wrap" id="pwa-howto" ${can ? 'hidden' : ''}>
+          <ul class="pwa-howto">
+            <li><b>Chrome / Edge (desktop)</b> — menu (⋮) → <i>Install Deep-Skim…</i> / <i>Install page as app</i></li>
+            <li><b>Safari (Mac)</b> — File → <i>Add to Dock…</i></li>
+            <li><b>iPhone / iPad</b> — Share → <i>Add to Home Screen</i></li>
+          </ul>
+          <p class="help" style="margin-top:0.5rem">If the one-click prompt is missing, hard-refresh on http://127.0.0.1 after <code>./start.sh</code>.</p>
+        </div>
+        ${can ? `<p class="help pwa-ready-hint">Install prompt ready — one click uses Chrome/Edge’s native installer.</p>` : ''}
         <p class="help" style="margin-top:0.75rem">
           PDFs and skims stay local. Host on HTTPS later for the same Install flow from a public URL.
         </p>
       </section>`;
   }
 
-  if (can) {
-    return `<button type="button" class="primary pwa-install-side" id="pwa-install-btn">Install app</button>`;
+  // compact — always a solid button
+  return `
+    <button type="button" class="primary pwa-install-side" id="pwa-install-btn" title="${
+      can ? 'Install Deep-Skim as an app' : 'Install Deep-Skim — opens how-to'
+    }">
+      ${INSTALL_ICON}
+      <span>${can ? 'Install app' : 'Install as app'}</span>
+    </button>`;
+}
+
+export function openInstallHelp() {
+  const card = document.getElementById('pwa-install-card');
+  if (card) {
+    const howto = document.getElementById('pwa-howto');
+    if (howto) howto.hidden = false;
+    card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    card.classList.add('pwa-card-flash');
+    setTimeout(() => card.classList.remove('pwa-card-flash'), 1200);
+    return;
   }
-  return `<p class="pwa-status"><a href="#/settings" data-nav="settings" class="pwa-link">Install as app…</a></p>`;
+  const settings = document.querySelector('[data-nav="settings"]');
+  if (settings) {
+    settings.click();
+    setTimeout(() => {
+      const howto = document.getElementById('pwa-howto');
+      if (howto) howto.hidden = false;
+      document.getElementById('pwa-install-card')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 100);
+  } else {
+    location.hash = '#/settings';
+  }
 }
 
 export function wireInstallButtons(root = document) {
   root.querySelectorAll('#pwa-install-btn').forEach((btn) => {
-    btn.onclick = async () => {
+    btn.onclick = async (e) => {
+      e.preventDefault();
       const r = await promptInstall();
       if (r.ok) return;
-      if (r.reason === 'no-prompt') {
+      if (document.getElementById('pwa-install-card')) {
+        const howto = document.getElementById('pwa-howto');
+        if (howto) howto.hidden = false;
         document.getElementById('pwa-install-card')?.scrollIntoView({
           behavior: 'smooth',
           block: 'nearest',
         });
+      } else {
+        openInstallHelp();
       }
     };
   });
