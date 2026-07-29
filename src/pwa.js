@@ -76,11 +76,15 @@ export function installUiHtml(mode = 'compact') {
   if (mode === 'full') {
     return `
       <section class="settings-block pwa-card" id="pwa-install-card">
-        <h3 class="pwa-heading">Install Deep-Skim</h3>
-        <p class="help">
-          One-click install puts Deep-Skim in your Applications folder / Start menu
-          and lets you pin it to the Dock or taskbar — no native binary required.
-        </p>
+        <div class="pwa-card-head" style="display:flex;gap:0.75rem;align-items:flex-start;margin-bottom:0.75rem">
+          <img src="./public/deep-skim-mark.svg" alt="" width="44" height="44" style="border-radius:10px;border:1px solid var(--border,#333);background:#141210" />
+          <div>
+            <h3 class="pwa-heading" style="margin:0 0 0.25rem">Install Deep-Skim</h3>
+            <p class="help" style="margin:0">
+              One-click install puts Deep-Skim in Applications / Start menu and on your Dock or taskbar — no native binary required.
+            </p>
+          </div>
+        </div>
         <button type="button" class="primary pwa-install-cta" id="pwa-install-btn">
           ${INSTALL_ICON}
           <span>${can ? 'Install app now' : 'How to install'}</span>

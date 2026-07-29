@@ -1,5 +1,5 @@
 /* Deep-Skim service worker — shell cache for installability + offline reopen */
-const CACHE = 'deep-skim-shell-v2';
+const CACHE = 'deep-skim-shell-v3';
 
 const PRECACHE = [
   './',
@@ -25,6 +25,7 @@ const PRECACHE = [
   './src/generation/multipass.js',
   './src/generation/longread.js',
   './src/generation/depth.js',
+  './public/deep-skim-mark.svg',
   './public/favicon.svg',
   './public/icon-192.png',
   './public/icon-512.png',

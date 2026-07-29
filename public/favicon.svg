@@ -1,16 +1,39 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
-  <rect width="64" height="64" rx="13" fill="#C4A35A"/>
-  <ellipse cx="32" cy="26" rx="17" ry="13" fill="#5E4030"/>
-  <ellipse cx="16.5" cy="20" rx="3.4" ry="4.6" fill="#5E4030"/>
-  <ellipse cx="47.5" cy="20" rx="3.4" ry="4.6" fill="#5E4030"/>
-  <ellipse cx="24.5" cy="23.5" rx="3.1" ry="3.4" fill="#F7F0E6"/>
-  <ellipse cx="39.5" cy="23.5" rx="3.1" ry="3.4" fill="#F7F0E6"/>
-  <circle cx="25.1" cy="24" r="1.7" fill="#1A1410"/>
-  <circle cx="40.1" cy="24" r="1.7" fill="#1A1410"/>
-  <ellipse cx="12" cy="44" rx="6" ry="9" fill="#5E4030"/>
-  <ellipse cx="52" cy="44" rx="6" ry="9" fill="#5E4030"/>
-  <path d="M6 33.5c0-1.2.8-2.1 2.3-2.5L30.5 25.2v33.3L8.5 63.2C6.8 63.7 6 62.6 6 61V33.5z" fill="#FBF7EC"/>
-  <path d="M58 33.5c0-1.2-.8-2.1-2.3-2.5L33.5 25.2v33.3l22 4.7c1.7.5 2.5-.6 2.5-2.2V33.5z" fill="#F0E8D2"/>
-  <ellipse cx="22" cy="29.2" rx="4.4" ry="2.8" fill="#5E4030"/>
-  <ellipse cx="42" cy="29.2" rx="4.4" ry="2.8" fill="#5E4030"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Deep-Skim — otter with book">
+  <defs>
+    <linearGradient id="gold" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#d4b06a"/>
+      <stop offset="0.5" stop-color="#c4a35a"/>
+      <stop offset="1" stop-color="#9a7b35"/>
+    </linearGradient>
+    <linearGradient id="fur" x1="16" y1="12" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6b4a34"/>
+      <stop offset="1" stop-color="#3e2a1e"/>
+    </linearGradient>
+  </defs>
+  <!-- plate -->
+  <rect width="64" height="64" rx="14" fill="#141210"/>
+  <rect x="1.25" y="1.25" width="61.5" height="61.5" rx="12.75" fill="none" stroke="#3a342c" stroke-width="1.5"/>
+
+  <!-- gold badge field -->
+  <rect x="6" y="6" width="52" height="52" rx="11" fill="url(#gold)"/>
+
+  <!-- otter head peeking over book -->
+  <ellipse cx="32" cy="26" rx="16" ry="12" fill="url(#fur)"/>
+  <ellipse cx="17" cy="20" rx="3.2" ry="4.3" fill="#5e4030"/>
+  <ellipse cx="47" cy="20" rx="3.2" ry="4.3" fill="#5e4030"/>
+  <ellipse cx="25" cy="24" rx="2.9" ry="3.1" fill="#f7f0e6"/>
+  <ellipse cx="39" cy="24" rx="2.9" ry="3.1" fill="#f7f0e6"/>
+  <circle cx="25.5" cy="24.4" r="1.5" fill="#1a1410"/>
+  <circle cx="39.5" cy="24.4" r="1.5" fill="#1a1410"/>
+  <ellipse cx="22" cy="29" rx="4" ry="2.5" fill="#5e4030"/>
+  <ellipse cx="42" cy="29" rx="4" ry="2.5" fill="#5e4030"/>
+
+  <!-- open book (deep skim) -->
+  <path d="M8 34c0-1.1.7-2 2.1-2.4L30 26.5v30.5L10.2 61.5C8.6 62 8 61 8 59.5V34z" fill="#fbf7ec"/>
+  <path d="M56 34c0-1.1-.7-2-2.1-2.4L34 26.5v30.5l19.8 4.5c1.6.5 2.2-.5 2.2-2V34z" fill="#f0e8d2"/>
+  <!-- skim lines -->
+  <path d="M14 40h10 M14 44h12 M14 48h9" stroke="#c4a35a" stroke-width="1.2" stroke-linecap="round" opacity="0.85"/>
+  <path d="M40 40h10 M38 44h12 M41 48h9" stroke="#9a7b35" stroke-width="1.2" stroke-linecap="round" opacity="0.75"/>
+  <!-- spine highlight -->
+  <path d="M32 27v30" stroke="#c4a35a" stroke-width="1.5" opacity="0.5"/>
 </svg>
