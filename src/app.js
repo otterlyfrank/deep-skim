@@ -73,6 +73,12 @@ import {
   setHash,
   icons,
 } from './ui/shell.js';
+import {
+  initPwa,
+  installUiHtml,
+  wireInstallButtons,
+  refreshInstallSlot,
+} from './pwa.js';
 
 /** @type {{ view: string, docId?: string, summaryId?: string, projectId?: string, quiz?: object }} */
 let state = { view: 'library' };
@@ -91,10 +97,12 @@ export async function boot() {
       '<div style="padding:2rem;font-family:system-ui;color:#e8e6e3;background:#0e0f11;min-height:100vh"><p style="opacity:0.7">Starting Deep-Skim…</p></div>';
   }
   try {
+    initPwa();
     await openDb();
     settingsCache = await getSettings();
     applyTheme(settingsCache.theme || 'dark');
     renderShell();
+    window.addEventListener('deepskim-pwa-change', () => refreshInstallSlot());
     window.addEventListener('hashchange', onHashChange);
     window.addEventListener('popstate', onHashChange);
     window.addEventListener('keydown', (e) => {
@@ -216,6 +224,7 @@ function renderShell() {
   });
   $('#sidebar-backdrop').addEventListener('click', closeMobileNav);
   applyTheme(settingsCache.theme || 'dark');
+  wireInstallButtons(appRoot());
 }
 
 function closeMobileNav() {
@@ -2026,6 +2035,8 @@ async function renderSettings(root, actions) {
         <div id="settings-status" class="status-line">Free path: Use free Gemini → paste AI Studio key → Save → Test connection.</div>
       </form>
 
+      ${installUiHtml('full')}
+
       <section class="setup-guide">
         <h3>Free path (recommended): Gemini 3.5 Flash</h3>
         <ol>
@@ -2046,6 +2057,8 @@ async function renderSettings(root, actions) {
       </section>
     </div>
   `;
+
+  wireInstallButtons(root);
 
   const status = $('#settings-status');
   /** @type {string[]} */

@@ -1,25 +1,41 @@
 # Deep-Skim
 
-**v1.11** · See [PATCHNOTES.md](PATCHNOTES.md) for release history.
+**v1.12** · See [PATCHNOTES.md](PATCHNOTES.md) for release history.
 
 A **local-first** browser app for one high-quality structured deep-skim per week.
 
 It is built for large PDF libraries and a prioritized *To Be Read ASAP* pile: a **substantial condensed reading** (often ~10–20 note-pages for a ~200pp book; ~25–50 for ~500pp), not a thin abstract — structured so the material sticks (active recall + spaced re-test), private by default (IndexedDB, optional local LLM/OCR only).
 
-## Quick start
+## Install as an app (recommended)
+
+Deep-Skim is a **Progressive Web App**. No native binary.
+
+Once open over **http://localhost** (or a future public HTTPS URL):
+
+1. **Chrome / Edge** — install icon in the address bar, or menu → **Install Deep-Skim…** / **Install page as app**  
+2. **Safari (Mac)** — **File → Add to Dock…**  
+3. **iPhone / iPad** — Share → **Add to Home Screen**
+
+That puts Deep-Skim in Applications / Start menu and lets you **pin it to the Dock or taskbar**.
+
+In-app: sidebar **Install app** (when offered) or **Settings → Install Deep-Skim**.
+
+Library data stays in **this browser profile’s IndexedDB**.
+
+## Quick start (local)
 
 Deep-Skim is static ES modules. Serve the folder over HTTP (not `file://`):
 
 ```bash
-cd deep-skim
+cd deep-skim-v1
 
 # any static server works, e.g.:
-python3 -m http.server 8080
+./start.sh
+# or: python3 -m http.server 8080
 # or: npx --yes serve -l 8080
-# or: npx --yes http-server -p 8080
 ```
 
-Open **http://localhost:8080**.
+Open **http://localhost:8080**, then **Install as app** (above).
 
 1. **Add PDFs** (drag-and-drop, multi-file picker, or **Add folder** — Chromium directory API or Safari/Firefox `webkitdirectory` fallback).
 2. Wait for **native extraction** (status → `ready`).

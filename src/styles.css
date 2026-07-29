@@ -361,6 +361,55 @@ button .icon {
   line-height: 1.35;
 }
 
+.pwa-side-slot {
+  margin: 0.55rem 0 0.15rem;
+}
+
+.pwa-side-slot .pwa-install-side {
+  width: 100%;
+  font-size: 0.82rem;
+  padding: 0.45rem 0.6rem;
+}
+
+.pwa-status {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--text-muted);
+}
+
+.pwa-link {
+  color: var(--accent, #c4a35a);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.pwa-link:hover {
+  text-decoration: underline;
+}
+
+.pwa-howto {
+  margin: 0.5rem 0 0.75rem;
+  padding-left: 1.15rem;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.pwa-howto li {
+  margin-bottom: 0.35rem;
+}
+
+.pwa-card {
+  margin-top: 1.25rem;
+}
+
+.pwa-heading {
+  font-family: var(--serif, inherit);
+  margin: 0 0 0.4rem;
+  font-size: 1.05rem;
+}
+
 .sidebar-footer {
   margin-top: auto;
   padding-top: 1rem;

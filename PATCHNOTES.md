@@ -1,5 +1,23 @@
 # Deep-Skim patch notes
 
+## v1.12 — Install as app (PWA)
+
+**Theme:** One-click install into Applications / Start menu / Dock / taskbar without a native binary.
+
+### Added
+- Progressive Web App: `manifest.webmanifest`, service worker (`sw.js`), 192/512 PNG icons
+- **Install app** in the sidebar (when Chromium offers a prompt)
+- **Settings → Install Deep-Skim** with Chrome / Edge / Safari / iOS howtos
+- README install-first path for public-facing product use
+
+### Notes for builders
+- Serve over HTTP(S) — `./start.sh` or any static host; not `file://`
+- Network-first SW so local development stays fresh; shell still opens offline after install
+- Host on HTTPS later for the same Install flow from a public URL
+- Optional OCR bridge / cloud LLM unchanged and still opt-in
+
+---
+
 ## v1.11 — Worth reading? (Star + Reading List)
 
 **Theme:** Make the central product question — *Is it worth reading?* — first-class in the UI.

@@ -2,6 +2,7 @@
  * Browser chrome: sidebar, topbar, status rail, hash routing helpers.
  */
 import { icons, brandOtterSvg } from './icons.js';
+import { installUiHtml } from '../pwa.js';
 
 export function shellHtml() {
   return `
@@ -71,6 +72,7 @@ export function shellHtml() {
               <span>Local</span>
             </div>
           </div>
+          <div class="pwa-side-slot" id="pwa-side-slot">${installUiHtml('compact')}</div>
           <button class="ghost theme-toggle" id="btn-theme" type="button" aria-label="Toggle theme">
             <span id="theme-icon">${icons.sun}</span>
             <span id="theme-label">Light mode</span>
