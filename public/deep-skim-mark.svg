@@ -1,39 +1,38 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Deep-Skim — otter with book">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Deep-Skim">
   <defs>
     <linearGradient id="gold" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
       <stop stop-color="#d4b06a"/>
-      <stop offset="0.5" stop-color="#c4a35a"/>
       <stop offset="1" stop-color="#9a7b35"/>
     </linearGradient>
-    <linearGradient id="fur" x1="16" y1="12" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+    <linearGradient id="fur" x1="16" y1="12" x2="48" y2="40" gradientUnits="userSpaceOnUse">
       <stop stop-color="#6b4a34"/>
       <stop offset="1" stop-color="#3e2a1e"/>
     </linearGradient>
   </defs>
-  <!-- plate -->
   <rect width="64" height="64" rx="14" fill="#141210"/>
-  <rect x="1.25" y="1.25" width="61.5" height="61.5" rx="12.75" fill="none" stroke="#3a342c" stroke-width="1.5"/>
+  <rect x="1.5" y="1.5" width="61" height="61" rx="12.5" fill="none" stroke="#3a342c" stroke-width="1.5"/>
+  <!-- gold field stays inside plate -->
+  <rect x="7" y="7" width="50" height="50" rx="11" fill="url(#gold)"/>
 
-  <!-- gold badge field -->
-  <rect x="6" y="6" width="52" height="52" rx="11" fill="url(#gold)"/>
+  <!-- otter head (larger, higher) -->
+  <ellipse cx="32" cy="24" rx="17" ry="13" fill="url(#fur)"/>
+  <ellipse cx="16" cy="18" rx="3.5" ry="4.5" fill="#5e4030"/>
+  <ellipse cx="48" cy="18" rx="3.5" ry="4.5" fill="#5e4030"/>
+  <!-- big eyes -->
+  <ellipse cx="25" cy="23" rx="4" ry="4.2" fill="#f7f0e6"/>
+  <ellipse cx="39" cy="23" rx="4" ry="4.2" fill="#f7f0e6"/>
+  <circle cx="25.5" cy="23.5" r="2.1" fill="#1a1410"/>
+  <circle cx="39.5" cy="23.5" r="2.1" fill="#1a1410"/>
+  <circle cx="26.2" cy="22.8" r="0.7" fill="#fff"/>
+  <circle cx="40.2" cy="22.8" r="0.7" fill="#fff"/>
+  <!-- cheeks -->
+  <ellipse cx="20" cy="28" rx="4" ry="2.5" fill="#5e4030"/>
+  <ellipse cx="44" cy="28" rx="4" ry="2.5" fill="#5e4030"/>
 
-  <!-- otter head peeking over book -->
-  <ellipse cx="32" cy="26" rx="16" ry="12" fill="url(#fur)"/>
-  <ellipse cx="17" cy="20" rx="3.2" ry="4.3" fill="#5e4030"/>
-  <ellipse cx="47" cy="20" rx="3.2" ry="4.3" fill="#5e4030"/>
-  <ellipse cx="25" cy="24" rx="2.9" ry="3.1" fill="#f7f0e6"/>
-  <ellipse cx="39" cy="24" rx="2.9" ry="3.1" fill="#f7f0e6"/>
-  <circle cx="25.5" cy="24.4" r="1.5" fill="#1a1410"/>
-  <circle cx="39.5" cy="24.4" r="1.5" fill="#1a1410"/>
-  <ellipse cx="22" cy="29" rx="4" ry="2.5" fill="#5e4030"/>
-  <ellipse cx="42" cy="29" rx="4" ry="2.5" fill="#5e4030"/>
-
-  <!-- open book (deep skim) -->
-  <path d="M8 34c0-1.1.7-2 2.1-2.4L30 26.5v30.5L10.2 61.5C8.6 62 8 61 8 59.5V34z" fill="#fbf7ec"/>
-  <path d="M56 34c0-1.1-.7-2-2.1-2.4L34 26.5v30.5l19.8 4.5c1.6.5 2.2-.5 2.2-2V34z" fill="#f0e8d2"/>
-  <!-- skim lines -->
-  <path d="M14 40h10 M14 44h12 M14 48h9" stroke="#c4a35a" stroke-width="1.2" stroke-linecap="round" opacity="0.85"/>
-  <path d="M40 40h10 M38 44h12 M41 48h9" stroke="#9a7b35" stroke-width="1.2" stroke-linecap="round" opacity="0.75"/>
-  <!-- spine highlight -->
-  <path d="M32 27v30" stroke="#c4a35a" stroke-width="1.5" opacity="0.5"/>
+  <!-- book clipped inside gold field -->
+  <path d="M10 34 L30 29 V54 L11 57 C10 57.2 9.5 56.5 9.5 55.5 V35 C9.5 34.3 9.8 34 10 34z" fill="#fbf7ec"/>
+  <path d="M54 34 L34 29 V54 L53 57 C54 57.2 54.5 56.5 54.5 55.5 V35 C54.5 34.3 54.2 34 54 34z" fill="#f0e8d2"/>
+  <path d="M14 40h10 M14 44h12 M14 48h9" stroke="#c4a35a" stroke-width="1.4" stroke-linecap="round" opacity="0.9"/>
+  <path d="M40 40h10 M38 44h12 M41 48h9" stroke="#9a7b35" stroke-width="1.4" stroke-linecap="round" opacity="0.8"/>
+  <path d="M32 29v26" stroke="#c4a35a" stroke-width="1.6" opacity="0.45"/>
 </svg>
