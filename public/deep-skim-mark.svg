@@ -1,38 +1,81 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Deep-Skim">
   <defs>
     <linearGradient id="gold" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#d4b06a"/>
-      <stop offset="1" stop-color="#9a7b35"/>
+      <stop stop-color="#d8b56e"/>
+      <stop offset="1" stop-color="#a07f38"/>
     </linearGradient>
-    <linearGradient id="fur" x1="16" y1="12" x2="48" y2="40" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#6b4a34"/>
-      <stop offset="1" stop-color="#3e2a1e"/>
+    <linearGradient id="fur" x1="20" y1="10" x2="44" y2="36" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7a5338"/>
+      <stop offset="1" stop-color="#4a3020"/>
+    </linearGradient>
+    <linearGradient id="pageL" x1="12" y1="30" x2="30" y2="52" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#fffcf5"/>
+      <stop offset="1" stop-color="#efe6d4"/>
+    </linearGradient>
+    <linearGradient id="pageR" x1="34" y1="30" x2="52" y2="52" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#f7f0e2"/>
+      <stop offset="1" stop-color="#e8dcc6"/>
     </linearGradient>
   </defs>
-  <rect width="64" height="64" rx="14" fill="#141210"/>
+
+  <!-- outer bezel -->
+  <rect width="64" height="64" rx="14" fill="#12100e"/>
   <rect x="1.5" y="1.5" width="61" height="61" rx="12.5" fill="none" stroke="#3a342c" stroke-width="1.5"/>
-  <!-- gold field stays inside plate -->
+  <!-- gold field -->
   <rect x="7" y="7" width="50" height="50" rx="11" fill="url(#gold)"/>
 
-  <!-- otter head (larger, higher) -->
-  <ellipse cx="32" cy="24" rx="17" ry="13" fill="url(#fur)"/>
-  <ellipse cx="16" cy="18" rx="3.5" ry="4.5" fill="#5e4030"/>
-  <ellipse cx="48" cy="18" rx="3.5" ry="4.5" fill="#5e4030"/>
-  <!-- big eyes -->
-  <ellipse cx="25" cy="23" rx="4" ry="4.2" fill="#f7f0e6"/>
-  <ellipse cx="39" cy="23" rx="4" ry="4.2" fill="#f7f0e6"/>
-  <circle cx="25.5" cy="23.5" r="2.1" fill="#1a1410"/>
-  <circle cx="39.5" cy="23.5" r="2.1" fill="#1a1410"/>
-  <circle cx="26.2" cy="22.8" r="0.7" fill="#fff"/>
-  <circle cx="40.2" cy="22.8" r="0.7" fill="#fff"/>
-  <!-- cheeks -->
-  <ellipse cx="20" cy="28" rx="4" ry="2.5" fill="#5e4030"/>
-  <ellipse cx="44" cy="28" rx="4" ry="2.5" fill="#5e4030"/>
+  <!-- otter head -->
+  <ellipse cx="32" cy="23" rx="15" ry="12" fill="url(#fur)"/>
+  <ellipse cx="18.5" cy="17" rx="3.2" ry="4" fill="#5a3c28"/>
+  <ellipse cx="45.5" cy="17" rx="3.2" ry="4" fill="#5a3c28"/>
+  <!-- eyes -->
+  <ellipse cx="26" cy="22" rx="4.2" ry="4.4" fill="#f7f0e6"/>
+  <ellipse cx="38" cy="22" rx="4.2" ry="4.4" fill="#f7f0e6"/>
+  <circle cx="26.4" cy="22.4" r="2.2" fill="#1a1410"/>
+  <circle cx="38.4" cy="22.4" r="2.2" fill="#1a1410"/>
+  <circle cx="27.1" cy="21.6" r="0.75" fill="#fff"/>
+  <circle cx="39.1" cy="21.6" r="0.75" fill="#fff"/>
+  <!-- snout / smile peeking above book -->
+  <ellipse cx="32" cy="28.5" rx="5" ry="3.2" fill="#c4a07a"/>
+  <path d="M29 29.5c1.2 1.3 4.8 1.3 6 0" fill="none" stroke="#5a3c28" stroke-width="1.1" stroke-linecap="round"/>
 
-  <!-- book clipped inside gold field -->
-  <path d="M10 34 L30 29 V54 L11 57 C10 57.2 9.5 56.5 9.5 55.5 V35 C9.5 34.3 9.8 34 10 34z" fill="#fbf7ec"/>
-  <path d="M54 34 L34 29 V54 L53 57 C54 57.2 54.5 56.5 54.5 55.5 V35 C54.5 34.3 54.2 34 54 34z" fill="#f0e8d2"/>
-  <path d="M14 40h10 M14 44h12 M14 48h9" stroke="#c4a35a" stroke-width="1.4" stroke-linecap="round" opacity="0.9"/>
-  <path d="M40 40h10 M38 44h12 M41 48h9" stroke="#9a7b35" stroke-width="1.4" stroke-linecap="round" opacity="0.8"/>
-  <path d="M32 29v26" stroke="#c4a35a" stroke-width="1.6" opacity="0.45"/>
+  <!--
+    Continuous open book — NO black gap.
+    Single paper shape with soft V gutter (cream fold shadow only).
+  -->
+  <!-- page stack edge (left) -->
+  <path fill="#e8dfc8" d="M11 36c0-1 0.6-1.6 1.4-1.8L30 30.5v24.5L12.2 58.2C11.2 58.5 10.5 57.8 10.5 56.8V37c0-0.5 0.2-0.9 0.5-1z"/>
+  <!-- page stack edge (right) -->
+  <path fill="#ddd2b8" d="M53 36c0-1-0.6-1.6-1.4-1.8L34 30.5v24.5l17.8 3.2c1 0.3 1.7-0.4 1.7-1.4V37c0-0.5-0.2-0.9-0.5-1z"/>
+
+  <!-- continuous open spread (joined at center) -->
+  <path fill="url(#pageL)" d="
+    M12.5 34.5
+    L31 30
+    L31 55.5
+    L13 58
+    C12 58.2 11.5 57.6 11.5 56.6
+    V36
+    C11.5 35 12 34.5 12.5 34.5
+    Z"/>
+  <path fill="url(#pageR)" d="
+    M51.5 34.5
+    L33 30
+    L33 55.5
+    L51 58
+    C52 58.2 52.5 57.6 52.5 56.6
+    V36
+    C52.5 35 52 34.5 51.5 34.5
+    Z"/>
+
+  <!-- soft cream gutter (not black): center fold -->
+  <path fill="#e0d4bc" d="M30.2 30.2 L33.8 30.2 L33.8 55.8 L30.2 55.8 Z" opacity="0.95"/>
+  <path d="M32 30.5 V55.5" stroke="#c4a35a" stroke-width="1.1" opacity="0.55" stroke-linecap="round"/>
+  <!-- subtle page curl highlights -->
+  <path d="M14 35.5 Q22 33 30.5 32" fill="none" stroke="#fff" stroke-width="1" opacity="0.35"/>
+  <path d="M50 35.5 Q42 33 33.5 32" fill="none" stroke="#fff" stroke-width="1" opacity="0.25"/>
+
+  <!-- skim lines -->
+  <path d="M16 40h10 M16 44h12 M16 48h9" stroke="#b8954a" stroke-width="1.35" stroke-linecap="round" opacity="0.85"/>
+  <path d="M38 40h10 M36 44h12 M39 48h9" stroke="#9a7b35" stroke-width="1.35" stroke-linecap="round" opacity="0.8"/>
 </svg>
