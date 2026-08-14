@@ -1,5 +1,5 @@
 /* Deep-Skim service worker — shell cache for installability + offline reopen */
-const CACHE = 'deep-skim-shell-v6';
+const CACHE = 'deep-skim-shell-v7';
 
 const PRECACHE = [
   './',

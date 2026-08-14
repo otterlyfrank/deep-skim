@@ -1,5 +1,10 @@
 # Deep-Skim patch notes
 
+## v1.13.1 — Search and empty filters (2026-08-14)
+
+- `/` jumps to library search
+- Empty filter chips offer **Show all** instead of a dead line
+
 ## v1.13 — Audit polish (P0–P2)
 
 **Theme:** Complete the Reading List climax, honest privacy, vault backup, mobile shell, and offline extract.

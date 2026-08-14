@@ -114,6 +114,19 @@ export async function boot() {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         openCommandPalette();
+        return;
+      }
+      const tag = (e.target && e.target.tagName) || '';
+      const inField = /^(INPUT|TEXTAREA|SELECT)$/.test(tag) || e.target?.isContentEditable;
+      if (e.key === '/' && !inField && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        const q = document.getElementById('search-input');
+        if (q) {
+          q.focus();
+          q.select?.();
+        } else {
+          navigate('search');
+        }
       }
     });
     let { view, params } = parseHash();
@@ -640,7 +653,14 @@ async function renderLibrary(root, actions) {
       });
       list.innerHTML = filtered.length
         ? filtered.map((d) => docCardHtml(d)).join('')
-        : `<p class="filter-empty">No documents match this filter.</p>`;
+        : `<p class="filter-empty">No documents match this filter. <button type="button" class="ghost" id="filter-show-all">Show all</button></p>`;
+      $('#filter-show-all')?.addEventListener('click', () => {
+        filter = 'all';
+        document.querySelectorAll('#library-filters .filter-chip').forEach((c) => {
+          c.classList.toggle('active', c.dataset.filter === 'all');
+        });
+        paintList();
+      });
       list.querySelectorAll('[data-open-doc]').forEach((el) => {
         el.addEventListener('click', (e) => {
           if (e.target.closest('button')) return;
