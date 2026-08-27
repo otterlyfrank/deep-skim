@@ -1,6 +1,6 @@
 {
   "name": "deep-skim",
-  "version": "1.13.1",
+  "version": "1.13.2",
   "private": false,
   "type": "module",
   "description": "Local-first deep-skim reading system",
@@ -10,8 +10,8 @@
     "url": "https://github.com/otterlyfrank/deep-skim-v1.0.git"
   },
   "scripts": {
-    "start": "python3 -m http.server 8080",
-    "serve": "python3 -m http.server 8080",
+    "start": "python3 serve.py",
+    "serve": "python3 serve.py",
     "test": "node tests/unit.test.js",
     "ocr-bridge": "python3 scripts/ocr_bridge.py --port 8765"
   },

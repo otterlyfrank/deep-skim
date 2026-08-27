@@ -77,6 +77,7 @@ export function shellHtml() {
             </div>
           </div>
           <div class="pwa-side-slot" id="pwa-side-slot">${installUiHtml('compact')}</div>
+          <p class="dim" data-app-version style="margin:0.35rem 0 0;font-size:0.78rem"></p>
           <p class="sidebar-support">
             <a href="https://ko-fi.com/otterlyfrank" target="_blank" rel="noopener">Support on Ko-fi</a>
           </p>

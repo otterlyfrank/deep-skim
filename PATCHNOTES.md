@@ -1,5 +1,9 @@
 # Deep-Skim patch notes
 
+## v1.13.2 — Installed app actually updates (2026-08-27)
+
+GitHub commits now reach the Dock/PWA: `serve.py` sends `Cache-Control: no-store`, the service worker checks on focus and reloads, sidebar shows `v… · git`.
+
 ## v1.13.1 — Search and empty filters (2026-08-14)
 
 - `/` jumps to library search
